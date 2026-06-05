@@ -8,6 +8,7 @@ const router = express.Router();
 const MAX_IMAGE_CHARS = 1_500_000;
 const MAX_IMAGES = 6;
 const PAYMENT_METHODS = new Set(['cash', 'card', 'loan']);
+const ORDER_STATUSES = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
 router.use(verifyFirebaseAdmin);
 
@@ -214,6 +215,71 @@ router.delete('/products/:id', [
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Failed to delete product.' });
+  }
+});
+
+router.get('/orders', async (req, res) => {
+  try {
+    const snapshot = await db.ref('orders').once('value');
+    const data = snapshot.val() || {};
+    const orders = Object.entries(data)
+      .map(([id, order]) => ({ id, ...order }))
+      .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to fetch orders.' });
+  }
+});
+
+router.put('/orders/:id/status', [
+  param('id').trim().isLength({ min: 6, max: 160 }),
+  body('status').isIn(ORDER_STATUSES),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+
+  try {
+    const orderRef = db.ref(`orders/${req.params.id}`);
+    const snapshot = await orderRef.once('value');
+    const order = snapshot.val();
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    const newStatus = req.body.status;
+    const updates = {
+      [`orders/${req.params.id}/status`]: newStatus,
+      [`orders/${req.params.id}/updated_at`]: Date.now(),
+      [`orders/${req.params.id}/updated_by`]: req.admin.uid,
+    };
+
+    if (newStatus === 'confirmed' && order.status === 'pending') {
+      for (const item of order.items || []) {
+        const productSnapshot = await db.ref(`products/${item.product_id}`).once('value');
+        const product = productSnapshot.val();
+
+        if (!product) continue;
+
+        const nextStock = Number(product.stock || 0) - Number(item.quantity || 0);
+        if (nextStock < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Not enough stock to confirm ${product.name}.`,
+          });
+        }
+
+        updates[`products/${item.product_id}/stock`] = nextStock;
+        updates[`products/${item.product_id}/updated_at`] = Date.now();
+      }
+    }
+
+    await db.ref().update(updates);
+    res.json({ success: true, message: 'Order status updated.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to update order status.' });
   }
 });
 

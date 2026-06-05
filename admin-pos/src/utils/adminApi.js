@@ -1,6 +1,7 @@
 import { auth } from '../firebase';
 
-const API_BASE_URL = import.meta.env.VITE_ADMIN_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_ADMIN_API_URL
+  || (import.meta.env.PROD ? 'https://web-pos-henna.vercel.app/api' : '/api');
 
 const getAuthHeaders = async () => {
   const user = auth.currentUser;
@@ -39,6 +40,11 @@ const request = async (path, options = {}) => {
 
 const adminApi = {
   getProducts: () => request('/admin/products?include_inactive=true'),
+  getOrders: () => request('/admin/orders'),
+  updateOrderStatus: (id, status) => request(`/admin/orders/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  }),
   createProduct: (payload) => request('/admin/products', {
     method: 'POST',
     body: JSON.stringify(payload),

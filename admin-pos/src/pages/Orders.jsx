@@ -1,142 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import { ref, onValue, update, get } from 'firebase/database';
-import { db } from '../firebase';
-import { ShoppingBag, CheckCircle, Clock, XCircle, Truck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle, Clock, PackageCheck, Truck, XCircle } from 'lucide-react';
+import adminApi from '../utils/adminApi';
+
+const statusStyles = {
+  pending: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
+  confirmed: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  shipped: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+  delivered: 'bg-green-500/15 text-green-300 border-green-500/30',
+  cancelled: 'bg-red-500/15 text-red-300 border-red-500/30',
+};
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const ordersRef = ref(db, 'orders');
-    const unsubscribe = onValue(ordersRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const orderList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        // Sort by created_at descending (newest first)
-        setOrders(orderList.sort((a, b) => b.created_at - a.created_at));
-      } else {
-        setOrders([]);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleStatusChange = async (orderId, newStatus) => {
-    if (window.confirm(`Are you sure you want to mark this order as ${newStatus}?`)) {
-      const order = orders.find(o => o.id === orderId);
-      
-      // If confirming the order, reduce stock
-      if (newStatus === 'confirmed' && order && order.status === 'pending') {
-        try {
-          const updates = {};
-          for (const item of order.items || []) {
-            const pSnapshot = await get(ref(db, `products/${item.product_id}`));
-            const product = pSnapshot.val();
-            if (product && typeof product.stock !== 'undefined') {
-              updates[`products/${item.product_id}/stock`] = Math.max(0, product.stock - item.quantity);
-            }
-          }
-          
-          if (Object.keys(updates).length > 0) {
-            await update(ref(db), updates);
-          }
-        } catch (error) {
-          console.error("Failed to update stock:", error);
-          alert("Warning: Failed to update product stock.");
-        }
-      }
-
-      await update(ref(db, `orders/${orderId}`), {
-        status: newStatus,
-        updated_at: Date.now()
-      });
+  const loadOrders = async () => {
+    try {
+      const res = await adminApi.getOrders();
+      setOrders(res.data || []);
+    } catch (error) {
+      alert(error.message || 'Failed to load orders.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
-      </span>
-    );
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    if (!window.confirm(`Mark this order as ${newStatus}?`)) return;
+
+    try {
+      await adminApi.updateOrderStatus(orderId, newStatus);
+      await loadOrders();
+    } catch (error) {
+      alert(error.message || 'Failed to update order status.');
+    }
   };
 
+  const getStatusBadge = (status) => (
+    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${statusStyles[status] || 'bg-gray-500/15 text-gray-300 border-gray-500/30'}`}>
+      {status || 'unknown'}
+    </span>
+  );
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Online Orders</h2>
+    <div className="p-6 overflow-y-auto">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-extrabold text-white">Online <span className="text-brand-green">Orders</span></h2>
+          <p className="text-gray-500 mt-1 font-medium">Confirm, ship, and manage website orders securely.</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-brand-card rounded-2xl border border-gray-800 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
-                <th className="p-4 font-medium">Order ID / Date</th>
-                <th className="p-4 font-medium">Customer</th>
-                <th className="p-4 font-medium">Items</th>
-                <th className="p-4 font-medium">Total</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Actions</th>
+              <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                <th className="p-4">Order</th>
+                <th className="p-4">Customer</th>
+                <th className="p-4">Items</th>
+                <th className="p-4">Total</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr><td colSpan="6" className="p-4 text-center text-gray-500">No orders yet.</td></tr>
+            <tbody className="divide-y divide-gray-800/50">
+              {loading ? (
+                <tr><td colSpan="6" className="p-8 text-center text-gray-500">Loading orders...</td></tr>
+              ) : orders.length === 0 ? (
+                <tr><td colSpan="6" className="p-8 text-center text-gray-500">No orders yet.</td></tr>
               ) : (
-                orders.map(order => (
-                  <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-[#0a0a0a]/40 transition-colors">
                     <td className="p-4">
-                      <div className="font-medium text-gray-800">{order.order_number}</div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(order.created_at).toLocaleString()}
+                      <div className="font-bold text-white">{order.order_number || order.id}</div>
+                      <div className="text-xs text-gray-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-bold text-gray-200">{order.customer_name || 'Customer'}</div>
+                      <div className="text-sm text-gray-500">{order.shipping_address?.phone || order.customer_email || '-'}</div>
+                    </td>
+                    <td className="p-4 text-sm text-gray-400">
+                      {order.items?.map((item, index) => (
+                        <div key={`${item.product_id}-${index}`}>{item.quantity}x {item.name}</div>
+                      ))}
+                    </td>
+                    <td className="p-4 font-black text-white">
+                      Rs. {Number(order.total || 0).toLocaleString()}
+                      <div className="text-xs text-gray-500 font-normal">{order.payment_method || 'COD'}</div>
+                    </td>
+                    <td className="p-4">{getStatusBadge(order.status)}</td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        {order.status === 'pending' && (
+                          <button onClick={() => handleStatusChange(order.id, 'confirmed')} className="p-2 bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 rounded-lg" title="Confirm Order">
+                            <CheckCircle size={18} />
+                          </button>
+                        )}
+                        {order.status === 'confirmed' && (
+                          <button onClick={() => handleStatusChange(order.id, 'shipped')} className="p-2 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 rounded-lg" title="Mark as Shipped">
+                            <Truck size={18} />
+                          </button>
+                        )}
+                        {order.status === 'shipped' && (
+                          <button onClick={() => handleStatusChange(order.id, 'delivered')} className="p-2 bg-green-500/15 text-green-300 hover:bg-green-500/25 rounded-lg" title="Mark as Delivered">
+                            <PackageCheck size={18} />
+                          </button>
+                        )}
+                        {['pending', 'confirmed'].includes(order.status) && (
+                          <button onClick={() => handleStatusChange(order.id, 'cancelled')} className="p-2 bg-red-500/15 text-red-300 hover:bg-red-500/25 rounded-lg" title="Cancel Order">
+                            <XCircle size={18} />
+                          </button>
+                        )}
+                        {!['pending', 'confirmed', 'shipped'].includes(order.status) && (
+                          <Clock size={18} className="text-gray-600 mt-2" />
+                        )}
                       </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-gray-800">{order.customer_name}</div>
-                      <div className="text-sm text-gray-500">{order.shipping_address?.phone}</div>
-                    </td>
-                    <td className="p-4">
-                      <div className="text-sm text-gray-600">
-                        {order.items?.map((item, i) => (
-                          <div key={i}>{item.quantity}x {item.name}</div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-4 font-medium text-gray-800">
-                      Rs. {order.total}
-                      <div className="text-xs text-gray-500 font-normal">{order.payment_method}</div>
-                    </td>
-                    <td className="p-4">
-                      {getStatusBadge(order.status)}
-                    </td>
-                    <td className="p-4 text-right space-x-2">
-                      {order.status === 'pending' && (
-                        <button onClick={() => handleStatusChange(order.id, 'confirmed')} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg" title="Confirm Order">
-                          <CheckCircle size={18} />
-                        </button>
-                      )}
-                      {order.status === 'confirmed' && (
-                        <button onClick={() => handleStatusChange(order.id, 'shipped')} className="p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg" title="Mark as Shipped">
-                          <Truck size={18} />
-                        </button>
-                      )}
-                      {['pending', 'confirmed'].includes(order.status) && (
-                        <button onClick={() => handleStatusChange(order.id, 'cancelled')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg" title="Cancel Order">
-                          <XCircle size={18} />
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))
