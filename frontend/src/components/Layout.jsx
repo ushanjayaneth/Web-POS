@@ -9,6 +9,7 @@ const Layout = () => {
   const { itemCount, fetchCart } = useCartStore();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const assetBaseUrl = (import.meta.env.VITE_API_URL || 'https://web-pos-henna.vercel.app/api').replace('/api', '');
 
   useEffect(() => {
     fetchUser();
@@ -39,10 +40,10 @@ const Layout = () => {
         <div className="container nav-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           {/* Logo */}
           <Link to="/" className="logo" style={{ flexShrink: 0, fontSize: '1.2rem', fontWeight: '800' }}>
-            <span style={{ color: 'var(--text-primary)' }}>Hello, ShoppingLK! 🛒</span>
+            <span style={{ color: 'var(--text-primary)' }}>ShoppingLK</span>
           </Link>
 
-          {/* Search — hide on very small screens */}
+          {/* Search */}
           <div className="search-bar nav-search-hide">
             <FiSearch className="search-icon" />
             <input type="text" className="search-input" placeholder="Search for products..." onKeyDown={handleSearch} />
@@ -61,7 +62,7 @@ const Layout = () => {
                 </Link>
                 <Link to="/profile" className="btn-icon nav-item" title="Profile">
                   {user?.avatar ? (
-                    <img src={import.meta.env.VITE_API_URL.replace('/api', '') + user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    <img src={assetBaseUrl + user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (
                     <FiUser size={20} />
                   )}

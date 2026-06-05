@@ -45,7 +45,7 @@ const ProductDetails = () => {
   const getImageUrl = (img) => {
     if (!img) return 'https://placehold.co/600x600/F1F3F5/868E96?text=No+Image';
     if (img.startsWith('http') || img.startsWith('data:')) return img;
-    return import.meta.env.VITE_API_URL?.replace('/api', '') + img;
+    return `${(import.meta.env.VITE_API_URL || 'https://web-pos-henna.vercel.app/api').replace('/api', '')}${img}`;
   };
 
   const images = product.images && product.images.length > 0 
@@ -92,7 +92,7 @@ const ProductDetails = () => {
           <div style={{ textTransform: 'uppercase', color: 'var(--secondary)', fontWeight: 800, fontSize: '0.9rem', letterSpacing: '2px', marginBottom: '1rem', textShadow: '0 0 10px var(--secondary-alpha)' }}>
             {product.brand || 'Premium Tech'}
           </div>
-          <h1 style={{ fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{product.name}</h1>
+          <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', marginBottom: '1.5rem', lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)', overflowWrap: 'anywhere' }}>{product.name}</h1>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-glass)', padding: '6px 12px', borderRadius: '50px', border: 'var(--border-glass)' }}>
@@ -106,7 +106,7 @@ const ProductDetails = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.5rem', marginBottom: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ fontSize: '3.5rem', fontWeight: 800, color: '#FFF', lineHeight: 1, textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+            <span style={{ fontSize: 'clamp(2rem, 7vw, 3.5rem)', fontWeight: 800, color: '#FFF', lineHeight: 1, textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
               Rs. {product.sale_price ? product.sale_price.toLocaleString() : product.price.toLocaleString()}
             </span>
             {product.sale_price && (
@@ -120,7 +120,7 @@ const ProductDetails = () => {
             {product.short_description || product.description?.substring(0, 150) + '...'}
           </p>
 
-          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50px', background: 'rgba(0,0,0,0.3)' }}>
               <button 
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -146,7 +146,7 @@ const ProductDetails = () => {
               onClick={async () => {
                 try {
                   const res = await api.post('/wishlist/toggle', { product_id: product.id || product.uuid });
-                  if (res.success) toast.success(res.message, { icon: '❤️' });
+                  if (res.success) toast.success(res.message);
                   else toast.error('Please login to use wishlist');
                 } catch (e) {
                   toast.error('Please login to use wishlist');
@@ -183,7 +183,7 @@ const ProductDetails = () => {
       </div>
 
       {/* Description Section */}
-      <div className="glass-panel" style={{ marginTop: '5rem', padding: '4rem' }}>
+      <div className="glass-panel" style={{ marginTop: '5rem', padding: 'clamp(1.5rem, 5vw, 4rem)' }}>
         <h2 style={{ fontSize: '2rem', marginBottom: '2rem', color: 'var(--primary)' }}>Product Details</h2>
         <div style={{ color: 'var(--text-secondary)', lineHeight: 1.9, fontSize: '1.1rem', whiteSpace: 'pre-line' }}>
           {product.description}
@@ -239,7 +239,7 @@ const ProductReviews = ({ productId }) => {
   };
 
   return (
-    <div className="glass-panel" style={{ marginTop: '3rem', padding: '4rem' }}>
+    <div className="glass-panel" style={{ marginTop: '3rem', padding: 'clamp(1.5rem, 5vw, 4rem)' }}>
       <h2 style={{ fontSize: '2rem', marginBottom: '2rem' }}>Customer Reviews</h2>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem' }}>
