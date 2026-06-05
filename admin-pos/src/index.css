@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-green: #4ADE80; /* Brighter, softer green for totals and stock */
+  --color-brand-dark: #0b0c15;  /* Deep midnight blue */
+  --color-brand-card: #131522;  /* Slightly lighter card background */
+  --color-brand-purple: #7C3AED; /* Primary purple color */
+  --color-brand-purple-hover: #6D28D9;
+}
+
+body {
+  background-color: var(--color-brand-dark);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-brand-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-green);
+}
+
+/* Hide scrollbar for mobile nav */
+.hide-scrollbar-mobile::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar-mobile {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

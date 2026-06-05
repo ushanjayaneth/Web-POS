@@ -1,0 +1,103 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": false
+      }
+    },
+    "products": {
+      ".read": true,
+      "$productId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+        ".validate": "newData.hasChildren(['name', 'slug', 'price', 'stock', 'category_name', 'is_active'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 120"
+        },
+        "slug": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9-]{1,120}$/)"
+        },
+        "barcode": {
+          ".validate": "newData.val() == '' || (newData.isString() && newData.val().length <= 64)"
+        },
+        "price": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "sale_price": {
+          ".validate": "newData.val() == null || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "cost_price": {
+          ".validate": "newData.val() == null || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "stock": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "category_name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+        },
+        "category_slug": {
+          ".validate": "newData.val() == '' || (newData.isString() && newData.val().length <= 120)"
+        },
+        "description": {
+          ".validate": "newData.val() == '' || (newData.isString() && newData.val().length <= 5000)"
+        },
+        "images": {
+          ".validate": "newData.hasChildren() || newData.val() == null"
+        },
+        "is_active": {
+          ".validate": "newData.val() == 0 || newData.val() == 1 || newData.isBoolean()"
+        },
+        "is_featured": {
+          ".validate": "newData.val() == 0 || newData.val() == 1 || newData.isBoolean()"
+        },
+        "$other": {
+          ".validate": true
+        }
+      }
+    },
+    "sales": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$saleId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+    "orders": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$orderId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).child('active').val() == true)",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "cart": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "wishlist": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "reviews": {
+      ".read": true,
+      "$reviewId": {
+        ".write": "auth != null"
+      }
+    },
+    "categories": {
+      ".read": true,
+      "$categoryId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    }
+  }
+}
