@@ -24,7 +24,15 @@ const App = () => {
         <Route path="wishlist" element={<Wishlist />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
-        <Route path="*" element={<div className="container" style={{ padding: '5rem 0', textAlign: 'center' }}><h1>404 Not Found</h1></div>} />
+        <Route
+          path="*"
+          element={(
+            <div className="container empty-state page-empty">
+              <h1>Page not found</h1>
+              <p>The page you are looking for does not exist.</p>
+            </div>
+          )}
+        />
       </Route>
     </Routes>
   );

@@ -1,163 +1,194 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useCartStore } from '../store';
+import { FiCheckCircle, FiShoppingBag } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { FiCheckCircle } from 'react-icons/fi';
+import { useCartStore } from '../store';
+import { formatCurrency, getImageUrl } from '../utils/catalog';
 
 const Checkout = () => {
   const { items, subtotal, clearCart } = useCartStore();
   const navigate = useNavigate();
-  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: '',
-    city: ''
+    city: '',
   });
-  
   const [isSuccess, setIsSuccess] = useState(false);
 
   const shipping = subtotal > 5000 ? 0 : 350;
   const total = subtotal + shipping;
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (event) => {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const buildOrderMessage = () => {
+    const lines = [
+      'New Order Received',
+      '',
+      'Customer Details',
+      `Name: ${formData.name}`,
+      `Phone: ${formData.phone}`,
+      `Address: ${formData.address}, ${formData.city}`,
+      '',
+      'Order Items',
+      ...items.map((item) => {
+        const amount = Number(item.sale_price || item.price || 0) * Number(item.quantity || 1);
+        return `${item.quantity} x ${item.name} - ${formatCurrency(amount)}`;
+      }),
+      '',
+      `Subtotal: ${formatCurrency(subtotal)}`,
+      `Shipping: ${shipping === 0 ? 'Free' : formatCurrency(shipping)}`,
+      `Total: ${formatCurrency(total)}`,
+      '',
+      'Please confirm this order.',
+    ];
+
+    return lines.join('\n');
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (items.length === 0) {
-      toast.error('Your cart is empty!');
+      toast.error('Your cart is empty');
       return;
     }
 
-    // Format the message for WhatsApp
-    let message = `🛒 *New Order Received!*\n\n`;
-    message += `👤 *Customer Details*\n`;
-    message += `Name: ${formData.name}\n`;
-    message += `Phone: ${formData.phone}\n`;
-    message += `Address: ${formData.address}, ${formData.city}\n\n`;
-    
-    message += `📦 *Order Items*\n`;
-    items.forEach(item => {
-      message += `▪ ${item.quantity}x ${item.name} - Rs. ${((item.sale_price || item.price) * item.quantity).toLocaleString()}\n`;
-    });
-    
-    message += `\n💰 *Subtotal:* Rs. ${subtotal.toLocaleString()}\n`;
-    message += `🚚 *Shipping:* ${shipping === 0 ? 'Free' : `Rs. ${shipping.toLocaleString()}`}\n`;
-    message += `💵 *Total Amount:* Rs. ${total.toLocaleString()}\n\n`;
-    message += `📍 *Please send this order to the above address.*`;
-
-    // Show success UI immediately
+    const message = buildOrderMessage();
     setIsSuccess(true);
-    await clearCart();
 
-    // Redirect to WhatsApp after 2 seconds
+    try {
+      await clearCart();
+    } catch {
+      toast.error('Cart could not be cleared automatically');
+    }
+
     setTimeout(() => {
-      const whatsappUrl = `https://wa.me/94776338514?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
+      window.open(`https://wa.me/94776338514?text=${encodeURIComponent(message)}`, '_blank');
       navigate('/');
-    }, 2000);
+    }, 1600);
   };
 
   if (isSuccess) {
     return (
-      <div className="container" style={{ padding: '8rem 1.5rem', textAlign: 'center', maxWidth: '600px', animation: 'fadeIn 0.5s ease' }}>
-        <div style={{ width: '100px', height: '100px', background: 'var(--accent-success)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', color: 'white' }}>
-          <FiCheckCircle size={50} />
-        </div>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Order Placed Successfully!</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', marginBottom: '2rem' }}>
-          Thank you for your order. We are redirecting you to WhatsApp to securely forward your order details to our team.
-        </p>
-        <div style={{ padding: '1rem', background: 'var(--bg-surface-alt)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-          Redirecting to WhatsApp in a few seconds...
-        </div>
+      <div className="container success-state page-empty">
+        <Helmet><title>Order Placed | ShoppingLK</title></Helmet>
+        <FiCheckCircle />
+        <h1>Order placed</h1>
+        <p>We are opening WhatsApp so you can send the order to our team.</p>
+        <span>Redirecting...</span>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="container empty-state page-empty">
+        <Helmet><title>Checkout | ShoppingLK</title></Helmet>
+        <FiShoppingBag />
+        <h1>Your cart is empty</h1>
+        <p>Add products before starting checkout.</p>
+        <Link to="/products" className="btn btn-primary">Shop products</Link>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ padding: '3rem 1.5rem', animation: 'fadeIn 0.5s ease' }}>
-      <Helmet><title>Checkout | ShopLK</title></Helmet>
-      
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem' }}>Checkout</h1>
+    <div className="container checkout-page">
+      <Helmet><title>Checkout | ShoppingLK</title></Helmet>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '3rem', alignItems: 'start' }}>
-        {/* Checkout Form */}
-        <div className="card" style={{ padding: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>Shipping Details</h2>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label className="input-label">Full Name</label>
-              <input type="text" name="name" required value={formData.name} onChange={handleChange} className="input-field" placeholder="John Doe" />
-            </div>
-            
-            <div className="input-group">
-              <label className="input-label">Phone Number (WhatsApp)</label>
-              <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} className="input-field" placeholder="071 234 5678" />
-            </div>
-            
-            <div className="input-group">
-              <label className="input-label">Delivery Address</label>
-              <textarea name="address" required value={formData.address} onChange={handleChange} className="input-field" placeholder="No 123, Main Street" rows="3" style={{ resize: 'vertical' }}></textarea>
-            </div>
+      <div className="page-heading">
+        <p className="eyebrow">Checkout</p>
+        <h1>Delivery details</h1>
+      </div>
 
-            <div className="input-group">
-              <label className="input-label">City</label>
-              <input type="text" name="city" required value={formData.city} onChange={handleChange} className="input-field" placeholder="Colombo 05" />
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.2rem', marginTop: '1rem' }}>
-              Confirm & Place Order
+      <div className="checkout-layout">
+        <section className="form-panel">
+          <h2>Shipping information</h2>
+          <form onSubmit={handleSubmit} className="checkout-form">
+            <label>
+              Full name
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Your name"
+                required
+              />
+            </label>
+            <label>
+              WhatsApp phone number
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="071 234 5678"
+                required
+              />
+            </label>
+            <label>
+              Delivery address
+              <textarea
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Street address"
+                rows="4"
+                required
+              />
+            </label>
+            <label>
+              City
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                placeholder="Colombo"
+                required
+              />
+            </label>
+            <button type="submit" className="btn btn-primary checkout-button">
+              Confirm order
             </button>
           </form>
-        </div>
+        </section>
 
-        {/* Order Summary Sidebar */}
-        <div className="card" style={{ padding: '2rem', position: 'sticky', top: '100px', background: 'var(--bg-surface-alt)' }}>
-          <h3 style={{ fontSize: '1.3rem', marginBottom: '1.5rem' }}>Order Summary ({items.length} items)</h3>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem', maxHeight: '300px', overflowY: 'auto' }}>
-            {items.map(item => {
-              const getImageUrl = (img) => {
-                if (!img) return 'https://placehold.co/100x100';
-                if (img.startsWith('http') || img.startsWith('data:')) return img;
-                return import.meta.env.VITE_API_URL?.replace('/api', '') + img;
-              };
+        <aside className="summary-panel">
+          <h2>Order summary</h2>
+          <div className="checkout-items">
+            {items.map((item) => {
+              const amount = Number(item.sale_price || item.price || 0) * Number(item.quantity || 1);
               return (
-              <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <img src={getImageUrl(item.images && item.images[0])} alt={item.name} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.name}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Qty: {item.quantity}</div>
+                <div className="checkout-item" key={item.id}>
+                  <img src={getImageUrl(item.images?.[0])} alt={item.name} />
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>Qty {item.quantity}</span>
+                  </div>
+                  <b>{formatCurrency(amount)}</b>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Rs. {((item.sale_price || item.price) * item.quantity).toLocaleString()}</div>
-              </div>
               );
             })}
           </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+          <div className="summary-line">
             <span>Subtotal</span>
-            <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>Rs. {subtotal.toLocaleString()}</span>
+            <strong>{formatCurrency(subtotal)}</strong>
           </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-            <span>Shipping Fee</span>
-            <span style={{ fontWeight: 500, color: shipping === 0 ? 'var(--accent-success)' : 'var(--text-primary)' }}>
-              {shipping === 0 ? 'Free' : `Rs. ${shipping.toLocaleString()}`}
-            </span>
+          <div className="summary-line">
+            <span>Shipping</span>
+            <strong>{shipping === 0 ? 'Free' : formatCurrency(shipping)}</strong>
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', margin: '1.5rem 0 0', paddingTop: '1.5rem', borderTop: '2px dashed var(--border-color)' }}>
-            <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Total</span>
-            <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>Rs. {total.toLocaleString()}</span>
+          <div className="summary-total">
+            <span>Total</span>
+            <strong>{formatCurrency(total)}</strong>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

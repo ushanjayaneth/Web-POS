@@ -1,190 +1,217 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { FiSearch, FiShoppingCart, FiUser, FiHeart, FiLogOut, FiMenu, FiX, FiHome, FiGrid } from 'react-icons/fi';
-import { useAuthStore, useCartStore } from '../store';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import {
+  FiGrid,
+  FiHeart,
+  FiHome,
+  FiLogOut,
+  FiMenu,
+  FiSearch,
+  FiShoppingCart,
+  FiUser,
+  FiX,
+} from 'react-icons/fi';
 import { Toaster } from 'react-hot-toast';
+import { useAuthStore, useCartStore } from '../store';
+import { assetBaseUrl } from '../utils/catalog';
 
 const Layout = () => {
   const { user, isAuthenticated, logout, fetchUser } = useAuthStore();
   const { itemCount, fetchCart } = useCartStore();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const assetBaseUrl = (import.meta.env.VITE_API_URL || 'https://web-pos-henna.vercel.app/api').replace('/api', '');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchCart();
-    }
+    if (isAuthenticated) fetchCart();
   }, [isAuthenticated, fetchCart]);
 
   const handleLogout = async () => {
     await logout();
+    setMenuOpen(false);
     navigate('/');
   };
 
-  const handleSearch = (e) => {
-    if (e.key === 'Enter' && e.target.value.trim()) {
-      navigate(`/products?search=${encodeURIComponent(e.target.value.trim())}`);
-      setMenuOpen(false);
-    }
+  const submitSearch = (event) => {
+    event.preventDefault();
+    const query = search.trim();
+    if (!query) return;
+    navigate(`/products?search=${encodeURIComponent(query)}`);
+    setSearch('');
+    setMenuOpen(false);
   };
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <>
       <Toaster position="top-center" />
-      <nav className="navbar">
-        <div className="container nav-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-          {/* Logo */}
-          <Link to="/" className="logo" style={{ flexShrink: 0, fontSize: '1.2rem', fontWeight: '800' }}>
-            <span style={{ color: 'var(--text-primary)' }}>ShoppingLK</span>
+
+      <header className="site-header">
+        <div className="container nav-shell">
+          <Link to="/" className="brand" onClick={closeMenu} aria-label="ShoppingLK home">
+            <span className="brand-mark">S</span>
+            <span className="brand-text">ShoppingLK</span>
           </Link>
 
-          {/* Search */}
-          <div className="search-bar nav-search-hide">
-            <FiSearch className="search-icon" />
-            <input type="text" className="search-input" placeholder="Search for products..." onKeyDown={handleSearch} />
-          </div>
+          <nav className="desktop-nav" aria-label="Main navigation">
+            <NavLink to="/" end>Home</NavLink>
+            <NavLink to="/products">Products</NavLink>
+            <NavLink to="/wishlist">Wishlist</NavLink>
+          </nav>
 
-          {/* Desktop Actions */}
-          <div className="nav-actions nav-desktop-only">
+          <form className="site-search desktop-search" onSubmit={submitSearch}>
+            <FiSearch aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search products"
+              aria-label="Search products"
+            />
+          </form>
+
+          <div className="nav-actions desktop-actions">
             {isAuthenticated ? (
               <>
-                <Link to="/wishlist" className="btn-icon nav-item" title="Wishlist"><FiHeart size={20} /></Link>
-                <Link to="/cart" className="btn-icon nav-item" title="Cart">
-                  <div style={{ position: 'relative' }}>
-                    <FiShoppingCart size={20} />
-                    {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
-                  </div>
+                <Link to="/wishlist" className="icon-button" aria-label="Wishlist">
+                  <FiHeart />
                 </Link>
-                <Link to="/profile" className="btn-icon nav-item" title="Profile">
-                  {user?.avatar ? (
-                    <img src={assetBaseUrl + user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                  ) : (
-                    <FiUser size={20} />
-                  )}
+                <Link to="/cart" className="icon-button cart-link" aria-label="Cart">
+                  <FiShoppingCart />
+                  {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
                 </Link>
-                <button onClick={handleLogout} className="btn-icon nav-item" title="Logout"><FiLogOut size={20} /></button>
+                {user?.avatar ? (
+                  <span className="user-avatar">
+                    <img src={`${assetBaseUrl}${user.avatar}`} alt={user.first_name || 'User'} />
+                  </span>
+                ) : (
+                  <span className="user-avatar" aria-label="Signed in">
+                    <FiUser />
+                  </span>
+                )}
+                <button type="button" className="icon-button" onClick={handleLogout} aria-label="Logout">
+                  <FiLogOut />
+                </button>
               </>
             ) : (
               <>
                 <Link to="/login" className="btn btn-secondary">Login</Link>
-                <Link to="/register" className="btn btn-primary">Sign Up</Link>
+                <Link to="/register" className="btn btn-primary">Create account</Link>
               </>
             )}
           </div>
 
-          {/* Mobile: Cart + Hamburger */}
-          <div className="nav-mobile-only" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {isAuthenticated && (
-              <Link to="/cart" className="btn-icon nav-item" style={{ position: 'relative' }}>
-                <FiShoppingCart size={20} />
-                {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
-              </Link>
-            )}
+          <div className="mobile-actions">
+            <Link to="/cart" className="icon-button cart-link" aria-label="Cart">
+              <FiShoppingCart />
+              {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
+            </Link>
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="btn-icon nav-item"
-              aria-label="Menu"
+              type="button"
+              className="icon-button"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
             >
-              {menuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+              {menuOpen ? <FiX /> : <FiMenu />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="nav-mobile-search">
-          <div className="container" style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
-            <div style={{ position: 'relative' }}>
-              <FiSearch style={{ position: 'absolute', left: '1.2rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input type="text" className="search-input" placeholder="Search for products..." style={{ width: '100%', paddingLeft: '3rem' }} onKeyDown={handleSearch} />
-            </div>
+        <div className="mobile-search-row">
+          <div className="container">
+            <form className="site-search" onSubmit={submitSearch}>
+              <FiSearch aria-hidden="true" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search products"
+                aria-label="Search products"
+              />
+            </form>
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
         {menuOpen && (
-          <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
-            <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem' }}>
+          <div className="mobile-menu">
+            <div className="container mobile-menu-panel">
+              <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
+              <NavLink to="/products" onClick={closeMenu}>Products</NavLink>
+              <NavLink to="/wishlist" onClick={closeMenu}>Wishlist</NavLink>
+              <NavLink to="/cart" onClick={closeMenu}>Cart</NavLink>
               {isAuthenticated ? (
-                <>
-                  <Link to="/profile" className="mobile-menu-item"><FiUser size={18} /> My Profile</Link>
-                  <Link to="/wishlist" className="mobile-menu-item"><FiHeart size={18} /> Wishlist</Link>
-                  <button onClick={handleLogout} className="mobile-menu-item" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', textAlign: 'left' }}>
-                    <FiLogOut size={18} /> Logout
-                  </button>
-                </>
+                <button type="button" onClick={handleLogout}>Logout</button>
               ) : (
                 <>
-                  <Link to="/login" className="mobile-menu-item">Login</Link>
-                  <Link to="/register" className="mobile-menu-item">Sign Up</Link>
+                  <NavLink to="/login" onClick={closeMenu}>Login</NavLink>
+                  <NavLink to="/register" onClick={closeMenu}>Create account</NavLink>
                 </>
               )}
             </div>
           </div>
         )}
-      </nav>
+      </header>
 
-      <main style={{ minHeight: 'calc(100vh - 300px)' }}>
+      <main className="site-main">
         <Outlet />
       </main>
 
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-grid">
-            <div className="footer-col">
-              <Link to="/" className="logo" style={{ marginBottom: '1.5rem' }}>
-                <span style={{ color: 'var(--text-primary)' }}>Shop</span>LK
-              </Link>
-              <p style={{ color: 'var(--text-muted)' }}>Sri Lanka's premier e-commerce destination for premium quality products.</p>
-            </div>
-            <div className="footer-col">
-              <h4>Shop Departments</h4>
-              <div className="footer-links">
-                <Link to="/category/electronics">Electronics</Link>
-                <Link to="/category/fashion">Fashion & Apparel</Link>
-                <Link to="/category/home-living">Home & Living</Link>
-                <Link to="/category/beauty">Beauty & Health</Link>
-              </div>
-            </div>
-            <div className="footer-col">
-              <h4>Customer Service</h4>
-              <div className="footer-links">
-                <Link to="/help">Help Center</Link>
-                <Link to="/track-order">Track Your Order</Link>
-                <Link to="/returns">Returns & Refunds</Link>
-                <Link to="/contact">Contact Us</Link>
-              </div>
-            </div>
+      <footer className="site-footer">
+        <div className="container footer-grid">
+          <div>
+            <Link to="/" className="brand footer-brand">
+              <span className="brand-mark">S</span>
+              <span className="brand-text">ShoppingLK</span>
+            </Link>
+            <p>Curated products, clear prices, and simple ordering for customers across Sri Lanka.</p>
           </div>
-          <div className="copyright">
-            <p>&copy; {new Date().getFullYear()} ShopLK. All rights reserved.</p>
+          <div>
+            <h3>Shop</h3>
+            <Link to="/products">All products</Link>
+            <Link to="/wishlist">Wishlist</Link>
+            <Link to="/cart">Cart</Link>
           </div>
+          <div>
+            <h3>Account</h3>
+            <Link to="/login">Login</Link>
+            <Link to="/register">Create account</Link>
+          </div>
+          <div>
+            <h3>Service</h3>
+            <p>Islandwide delivery</p>
+            <p>WhatsApp checkout</p>
+            <p>Secure account access</p>
+          </div>
+        </div>
+        <div className="container footer-bottom">
+          <span>© {new Date().getFullYear()} ShoppingLK. All rights reserved.</span>
         </div>
       </footer>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="bottom-nav">
-        <Link to="/" className="bottom-nav-item active">
-          <FiHome size={22} />
+      <nav className="bottom-nav" aria-label="Mobile navigation">
+        <NavLink to="/" end>
+          <FiHome />
           <span>Home</span>
-        </Link>
-        <Link to="/products" className="bottom-nav-item">
-          <FiGrid size={22} />
+        </NavLink>
+        <NavLink to="/products">
+          <FiGrid />
           <span>Products</span>
-        </Link>
-        <Link to="/cart" className="bottom-nav-item" style={{ position: 'relative' }}>
-          <FiShoppingCart size={22} />
-          {itemCount > 0 && <span className="cart-badge" style={{ top: '-5px', right: '10px' }}>{itemCount}</span>}
+        </NavLink>
+        <NavLink to="/wishlist">
+          <FiHeart />
+          <span>Wishlist</span>
+        </NavLink>
+        <NavLink to="/cart" className="cart-link">
+          <FiShoppingCart />
+          {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
           <span>Cart</span>
-        </Link>
-        <Link to="/profile" className="bottom-nav-item">
-          <FiUser size={22} />
-          <span>Profile</span>
-        </Link>
+        </NavLink>
       </nav>
     </>
   );

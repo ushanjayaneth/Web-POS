@@ -9,12 +9,16 @@ import Orders from './Orders';
 import PosTerminal from './PosTerminal';
 import Loans from './Loans';
 import Reports from './Reports';
+import Returns from './Returns';
+import Barcodes from './Barcodes';
 
 const navItems = [
   { id: 'pos', label: 'POS' },
   { id: 'products', label: 'STOCK' },
   { id: 'loans', label: 'LOANS' },
   { id: 'reports', label: 'REPORTS' },
+  { id: 'returns', label: 'RETURNS' },
+  { id: 'barcodes', label: 'BARCODES' },
   { id: 'orders', label: 'ORDERS' },
 ];
 
@@ -34,7 +38,7 @@ const Dashboard = () => {
         const res = await adminApi.getSales();
         const today = new Date().toISOString().split('T')[0];
         const revenue = (res.data || [])
-          .filter((sale) => new Date(sale.created_at).toISOString().split('T')[0] === today)
+          .filter((sale) => new Date(sale.created_at).toISOString().split('T')[0] === today && !sale.isReturn)
           .reduce((sum, sale) => sum + Number(sale.total || 0), 0);
         setDailyRevenue(revenue);
       } catch {
@@ -96,6 +100,10 @@ const Dashboard = () => {
         return <Loans isProfitVisible={isProfitVisible} />;
       case 'reports':
         return <Reports isProfitVisible={isProfitVisible} />;
+      case 'returns':
+        return <Returns />;
+      case 'barcodes':
+        return <Barcodes />;
       case 'pos':
       default:
         return <PosTerminal isProfitVisible={isProfitVisible} />;

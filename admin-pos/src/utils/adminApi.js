@@ -64,6 +64,49 @@ const adminApi = {
   settleLoan: (id) => request(`/admin/sales/${id}/settle`, {
     method: 'PUT',
   }),
+  processReturn: (saleId, itemIdx, type) => request(`/admin/sales/${saleId}/return`, {
+    method: 'POST',
+    body: JSON.stringify({ itemIdx, type }),
+  }),
+  getSupplierReturns: () => request('/admin/supplier-returns'),
+  createSupplierReturn: (payload) => request('/admin/supplier-returns', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  deleteSupplierReturn: (id) => request(`/admin/supplier-returns/${id}`, {
+    method: 'DELETE',
+  }),
+  getLoanCustomers: () => request('/admin/loan-customers'),
+  createLoanCustomer: (payload) => request('/admin/loan-customers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  updateLoanCustomer: (id, payload) => request(`/admin/loan-customers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }),
+  deleteLoanCustomer: (id) => request(`/admin/loan-customers/${id}`, {
+    method: 'DELETE',
+  }),
+  getLoans: () => request('/admin/loans'),
+  createLoan: (payload) => request('/admin/loans', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  updateLoan: (id, payload) => request(`/admin/loans/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }),
+  recordLoanPayment: (id, payload) => request(`/admin/loans/${id}/payment`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }),
+  markInstallmentPaid: (id, idx) => request(`/admin/loans/${id}/installment/${idx}`, {
+    method: 'PUT',
+  }),
+  deleteLoan: (id) => request(`/admin/loans/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 export default adminApi;

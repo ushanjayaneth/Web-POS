@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useAuthStore } from '../store';
+import { FiEye, FiEyeOff, FiLock, FiMail } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../store';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const login = useAuthStore(state => state.login);
+  const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
+
     try {
       const res = await login(email, password);
       if (res.success) {
@@ -30,41 +33,63 @@ const Login = () => {
   };
 
   return (
-    <div className="container" style={{ padding: '5rem 1.5rem', maxWidth: '500px', animation: 'fadeIn 0.5s ease' }}>
-      <Helmet><title>Login | ShopLK</title></Helmet>
-      <div className="card" style={{ padding: '2rem' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Welcome Back</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Email</label>
-            <input 
-              type="email" 
-              required 
-              value={email} 
-              onChange={e => setEmail(e.target.value)}
-              className="search-input" 
-              style={{ width: '100%', border: '1px solid var(--border-color)' }} 
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Password</label>
-            <input 
-              type="password" 
-              required 
-              value={password} 
-              onChange={e => setPassword(e.target.value)}
-              className="search-input" 
-              style={{ width: '100%', border: '1px solid var(--border-color)' }} 
-            />
-          </div>
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ padding: '1rem', marginTop: '1rem' }}>
+    <div className="auth-page container">
+      <Helmet><title>Login | ShoppingLK</title></Helmet>
+
+      <section className="auth-intro">
+        <p className="eyebrow">Welcome back</p>
+        <h1>Login to continue shopping.</h1>
+        <p>Access your cart, wishlist, and checkout details securely.</p>
+      </section>
+
+      <section className="auth-card">
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <label>
+            Email
+            <span className="input-shell">
+              <FiMail />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+              />
+            </span>
+          </label>
+
+          <label>
+            Password
+            <span className="input-shell">
+              <FiLock />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Your password"
+              />
+              <button
+                type="button"
+                className="input-icon-button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </span>
+          </label>
+
+          <button type="submit" disabled={loading} className="btn btn-primary auth-submit">
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--text-secondary)' }}>
-          Don't have an account? <Link to="/register" style={{ color: 'var(--primary)' }}>Sign up</Link>
+
+        <p className="auth-switch">
+          New to ShoppingLK? <Link to="/register">Create an account</Link>
         </p>
-      </div>
+      </section>
     </div>
   );
 };

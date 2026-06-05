@@ -1,109 +1,119 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FiShoppingCart, FiTrash2 } from 'react-icons/fi';
-import api from '../utils/api';
-import { useCartStore, useAuthStore } from '../store';
+import { FiHeart, FiShoppingCart, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import api from '../utils/api';
+import { useAuthStore, useCartStore } from '../store';
+import { formatCurrency, getImageUrl, getProductId, getProductPrice, summarizeText } from '../utils/catalog';
 
 const Wishlist = () => {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      toast.error('Please login to view your wishlist');
-      navigate('/login');
-      return;
-    }
-    fetchWishlist();
-  }, [isAuthenticated, navigate]);
+    const fetchWishlist = async () => {
+      if (isLoading) return;
 
-  const fetchWishlist = async () => {
-    try {
-      const res = await api.get('/wishlist');
-      if (res.success) {
-        setWishlist(res.data);
+      if (!isAuthenticated) {
+        toast.error('Please login to view your wishlist');
+        navigate('/login');
+        return;
       }
-    } catch (err) {
-      toast.error('Failed to load wishlist');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      try {
+        const res = await api.get('/wishlist');
+        if (res.success) setWishlist(res.data || []);
+      } catch {
+        toast.error('Wishlist could not be loaded');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWishlist();
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleRemove = async (productId) => {
     try {
       const res = await api.post('/wishlist/toggle', { product_id: productId });
       if (res.success) {
-        setWishlist(wishlist.filter(item => item.id !== productId));
+        setWishlist((items) => items.filter((item) => getProductId(item) !== productId));
         toast.success('Removed from wishlist');
       }
-    } catch (err) {
-      toast.error('Failed to remove item');
+    } catch {
+      toast.error('Item could not be removed');
     }
   };
 
   const handleAddToCart = async (productId) => {
     try {
       await addToCart(productId, 1);
-      toast.success('Added to cart!');
+      toast.success('Added to cart');
     } catch (err) {
-      toast.error(err.message || 'Failed to add to cart');
+      toast.error(err.message || 'Item could not be added');
     }
   };
 
-  const getImageUrl = (img) => {
-    if (!img) return 'https://placehold.co/400x400/F1F3F5/868E96?text=No+Image';
-    if (img.startsWith('http') || img.startsWith('data:')) return img;
-    return import.meta.env.VITE_API_URL?.replace('/api', '') + img;
-  };
-
-  if (loading) {
-    return <div className="container" style={{ padding: '5rem 0', textAlign: 'center' }}>Loading wishlist...</div>;
+  if (loading || isLoading) {
+    return <div className="container page-loader">Loading wishlist...</div>;
   }
 
   return (
-    <div className="container" style={{ padding: '3rem 1.5rem', minHeight: '80vh' }}>
+    <div className="container wishlist-page">
       <Helmet>
-        <title>My Wishlist - ShopLK</title>
+        <title>Wishlist | ShoppingLK</title>
       </Helmet>
-      
-      <h1 style={{ marginBottom: '2rem' }}>My Wishlist ❤️</h1>
+
+      <div className="page-heading">
+        <p className="eyebrow">Saved items</p>
+        <h1>Wishlist</h1>
+      </div>
 
       {wishlist.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '5rem 0', background: 'var(--bg-card)', borderRadius: '16px' }}>
-          <h2 style={{ marginBottom: '1rem' }}>Your wishlist is empty</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Add items that you like to your wishlist. Review them anytime and easily move them to the cart.</p>
-          <Link to="/products" className="btn btn-primary">Browse Products</Link>
+        <div className="empty-state page-empty">
+          <FiHeart />
+          <h2>Your wishlist is empty</h2>
+          <p>Save products you like and review them here later.</p>
+          <Link to="/products" className="btn btn-primary">Browse products</Link>
         </div>
       ) : (
-        <div className="grid-cols-4">
-          {wishlist.map(product => (
-            <div key={product.id} className="card product-card">
-              <Link to={`/product/${product.slug}`} className="product-image-wrap">
-                <img src={getImageUrl(product.images?.[0])} alt={product.name} className="product-image" loading="lazy" />
-              </Link>
-              <div className="product-info">
-                <div className="product-category">{product.category_name}</div>
-                <h3 className="product-title">{product.name}</h3>
-                <div className="product-price-row">
-                  <span className="price-current">LKR {product.sale_price ? product.sale_price.toLocaleString() : product.price.toLocaleString()}</span>
+        <div className="product-grid">
+          {wishlist.map((product) => {
+            const productId = getProductId(product);
+            const { activePrice, price, hasSale } = getProductPrice(product);
+
+            return (
+              <article key={productId} className="wishlist-card">
+                <Link to={`/product/${product.slug || productId}`} className="wishlist-image">
+                  <img src={getImageUrl(product.images?.[0])} alt={product.name} />
+                </Link>
+                <div className="wishlist-info">
+                  <span>{product.category_name || 'ShoppingLK'}</span>
+                  <Link to={`/product/${product.slug || productId}`} className="wishlist-title">
+                    {product.name}
+                  </Link>
+                  <p>{summarizeText(product.short_description || product.description || '', 88)}</p>
+                  <div className="price-stack">
+                    <strong>{formatCurrency(activePrice)}</strong>
+                    {hasSale && <small>{formatCurrency(price)}</small>}
+                  </div>
+                  <div className="wishlist-actions">
+                    <button type="button" className="btn btn-primary" onClick={() => handleAddToCart(productId)}>
+                      <FiShoppingCart />
+                      Add
+                    </button>
+                    <button type="button" className="icon-button danger" onClick={() => handleRemove(productId)} aria-label="Remove from wishlist">
+                      <FiTrash2 />
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  <button className="btn btn-primary" style={{ flex: 1, padding: '0.5rem' }} onClick={() => handleAddToCart(product.id)}>
-                    <FiShoppingCart /> Add
-                  </button>
-                  <button className="btn btn-secondary" style={{ padding: '0.5rem' }} onClick={() => handleRemove(product.id)}>
-                    <FiTrash2 color="#EF4444" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
