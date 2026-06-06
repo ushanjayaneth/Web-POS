@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL
-  || (import.meta.env.PROD ? 'https://web-pos-henna.vercel.app/api' : '/api');
+const PRODUCTION_API_URL = 'https://web-pos-henna.vercel.app/api';
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const isLocalApiUrl = configuredApiUrl
+  && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\/api\/?$/i.test(configuredApiUrl);
+
+const API_BASE_URL = import.meta.env.PROD
+  ? (configuredApiUrl && !isLocalApiUrl ? configuredApiUrl : PRODUCTION_API_URL)
+  : (configuredApiUrl || '/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

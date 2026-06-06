@@ -20,6 +20,7 @@ uploads/
 **/uploads/
 .upload/
 backups/
+.tmp/
 *.db
 *.db-wal
 *.db-shm
