@@ -28,8 +28,8 @@ const Products = () => {
   }, [searchQuery]);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
+    const fetchProducts = async (showLoading = false) => {
+      if (showLoading) setLoading(true);
       try {
         let endpoint = `/products?limit=100&_ts=${Date.now()}`;
         if (categorySlug) endpoint += `&category=${encodeURIComponent(categorySlug)}`;
@@ -40,7 +40,7 @@ const Products = () => {
       } catch {
         toast.error('Products could not be loaded');
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     };
 
@@ -55,11 +55,11 @@ const Products = () => {
       }
     };
 
-    fetchProducts();
+    fetchProducts(true);
     fetchCategories();
 
-    const refreshTimer = window.setInterval(fetchProducts, 15000);
-    const refreshOnFocus = () => fetchProducts();
+    const refreshTimer = window.setInterval(() => fetchProducts(false), 15000);
+    const refreshOnFocus = () => fetchProducts(false);
     window.addEventListener('focus', refreshOnFocus);
 
     return () => {
