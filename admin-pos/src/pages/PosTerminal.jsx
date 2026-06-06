@@ -12,6 +12,14 @@ const PosTerminal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [discount, setDiscount] = useState(0);
 
+  // Viewport-based lazy rendering limit
+  const getInitialLimit = () => window.innerWidth < 768 ? 12 : 18;
+  const [visibleLimit, setVisibleLimit] = useState(getInitialLimit());
+
+  useEffect(() => {
+    setVisibleLimit(getInitialLimit());
+  }, [searchQuery]);
+
   // Quick Cash State
   const [cashReceived, setCashReceived] = useState('');
 
@@ -126,6 +134,15 @@ const PosTerminal = () => {
     (p.slug && p.slug.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (p.barcode && p.barcode.includes(searchQuery))
   );
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      const isMobile = window.innerWidth < 768;
+      const chunk = isMobile ? 12 : 18;
+      setVisibleLimit(prev => Math.min(prev + chunk, filteredProducts.length));
+    }
+  };
 
   const addToCart = (product) => {
     const existingItem = cart.find(item => item.id === product.id);
@@ -293,7 +310,7 @@ const PosTerminal = () => {
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 flex-1 pb-24 overflow-y-auto pr-1">
+        <div onScroll={handleScroll} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 flex-1 pb-24 overflow-y-auto pr-1">
           {loading ? (
             // Loading skeleton — shows instantly while data fetches
             [...Array(8)].map((_, i) => (
@@ -309,7 +326,7 @@ const PosTerminal = () => {
               <p className="text-xs font-bold">{t('search') || 'No results found'}</p>
             </div>
           ) : (
-            filteredProducts.map(product => (
+            filteredProducts.slice(0, visibleLimit).map(product => (
               <div
                 key={product.id}
                 onClick={() => addToCart(product)}

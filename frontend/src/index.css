@@ -507,7 +507,7 @@ button:disabled {
 .product-grid,
 .grid-cols-4 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
   gap: 1.2rem;
   align-items: stretch;
 }
@@ -1085,6 +1085,7 @@ button:disabled {
 }
 
 .checkout-form input,
+.checkout-form select,
 .checkout-form textarea,
 .review-form textarea {
   width: 100%;
@@ -1714,8 +1715,6 @@ button:disabled {
   }
 
   .department-grid,
-  .product-grid,
-  .grid-cols-4,
   .promise-grid,
   .two-field-row {
     grid-template-columns: 1fr;
@@ -1723,7 +1722,57 @@ button:disabled {
 
   .product-grid,
   .grid-cols-4 {
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .product-media {
+    padding: 0.5rem;
+  }
+
+  .product-info {
+    padding: 0.6rem;
+    gap: 0.45rem;
+  }
+
+  .product-summary {
+    display: none;
+  }
+
+  .product-price-row {
+    padding-top: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .product-title {
+    font-size: 0.88rem;
+    min-height: 2.7em;
+  }
+
+  .price-current {
+    font-size: 0.95rem;
+  }
+
+  .price-old {
+    font-size: 0.75rem;
+  }
+
+  .stock-chip {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.35rem;
+  }
+
+  .product-add {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .product-wishlist {
+    width: 32px;
+    height: 32px;
+    top: 6px;
+    right: 6px;
   }
 
   .purchase-panel {

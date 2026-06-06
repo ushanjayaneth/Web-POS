@@ -165,8 +165,8 @@ const Products = ({ isProfitVisible = false }) => {
         img.src = event.target.result;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          const MAX_WIDTH = 1000;
+          const MAX_HEIGHT = 1000;
           let width = img.width;
           let height = img.height;
 
@@ -187,8 +187,8 @@ const Products = ({ isProfitVisible = false }) => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Return as Base64 string directly to save in Realtime DB
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // 0.6 quality for smaller size
+          // Return as WebP base64 string directly (webp has better quality/compression than jpeg)
+          const dataUrl = canvas.toDataURL('image/webp', 0.85);
           resolve(dataUrl);
         };
         img.onerror = () => {
