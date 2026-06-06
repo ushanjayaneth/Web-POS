@@ -113,6 +113,8 @@ router.get('/products', [
   if (failValidation(req, res)) return;
 
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
     const includeInactive = req.query.include_inactive === 'true';
     const snapshot = await db.ref('products').once('value');
     const data = snapshot.val() || {};

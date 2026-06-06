@@ -31,19 +31,12 @@ const Products = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        let endpoint = '/products?limit=100';
+        let endpoint = `/products?limit=100&_ts=${Date.now()}`;
         if (categorySlug) endpoint += `&category=${encodeURIComponent(categorySlug)}`;
         if (searchQuery) endpoint += `&search=${encodeURIComponent(searchQuery)}`;
 
-        const [productRes, categoryRes] = await Promise.all([
-          api.get(endpoint),
-          api.get('/categories'),
-        ]);
-
+        const productRes = await api.get(endpoint);
         if (productRes.success) setProducts(productRes.data || []);
-        if (categoryRes.success) {
-          setCategories((categoryRes.data || []).filter((category) => category.is_active !== 0));
-        }
       } catch {
         toast.error('Products could not be loaded');
       } finally {
@@ -51,7 +44,28 @@ const Products = () => {
       }
     };
 
+    const fetchCategories = async () => {
+      try {
+        const categoryRes = await api.get(`/categories?_ts=${Date.now()}`);
+        if (categoryRes.success) {
+          setCategories((categoryRes.data || []).filter((category) => category.is_active !== 0));
+        }
+      } catch {
+        setCategories([]);
+      }
+    };
+
     fetchProducts();
+    fetchCategories();
+
+    const refreshTimer = window.setInterval(fetchProducts, 15000);
+    const refreshOnFocus = () => fetchProducts();
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, [categorySlug, searchQuery]);
 
   const sortedProducts = useMemo(() => {

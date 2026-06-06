@@ -6,6 +6,8 @@ const router = express.Router();
 // GET all categories
 router.get('/', async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
     const snapshot = await db.ref('categories').once('value');
     const data = snapshot.val();
     let categories = [];

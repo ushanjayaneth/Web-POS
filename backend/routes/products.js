@@ -25,6 +25,8 @@ const toPublicProduct = (product, id) => ({
 // Since you are using an external app to add products, this only reads data.
 router.get('/', optionalAuth, async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
     const {
       page = 1, limit = 20, category, search, min_price, max_price, brand, condition, featured
     } = req.query;

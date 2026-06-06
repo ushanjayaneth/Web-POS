@@ -21,23 +21,37 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [prodRes, catRes] = await Promise.all([
-          api.get('/products?limit=12'),
-          api.get('/categories'),
-        ]);
-
+        const prodRes = await api.get(`/products?limit=12&_ts=${Date.now()}`);
         if (prodRes.success) setProducts(prodRes.data || []);
-        if (catRes.success) {
-          setCategories((catRes.data || []).filter((category) => category.is_active !== 0));
-        }
       } catch {
-        toast.error('Store data could not be loaded');
+        toast.error('Store products could not be loaded');
       } finally {
         setLoading(false);
       }
     };
 
+    const fetchCategories = async () => {
+      try {
+        const catRes = await api.get(`/categories?_ts=${Date.now()}`);
+        if (catRes.success) {
+          setCategories((catRes.data || []).filter((category) => category.is_active !== 0));
+        }
+      } catch {
+        setCategories([]);
+      }
+    };
+
     fetchData();
+    fetchCategories();
+
+    const refreshTimer = window.setInterval(fetchData, 15000);
+    const refreshOnFocus = () => fetchData();
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, []);
 
   const departments = useMemo(() => {

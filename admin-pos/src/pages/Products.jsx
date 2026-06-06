@@ -41,6 +41,15 @@ const Products = ({ isProfitVisible = false }) => {
 
   useEffect(() => {
     loadProducts();
+
+    const refreshTimer = window.setInterval(loadProducts, 15000);
+    const refreshOnFocus = () => loadProducts();
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, []);
 
   const handleInputChange = (e) => {

@@ -40,6 +40,15 @@ const PosTerminal = () => {
 
   useEffect(() => {
     loadData();
+
+    const refreshTimer = window.setInterval(loadData, 10000);
+    const refreshOnFocus = () => loadData();
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, []);
 
   // Barcode scanner listener
