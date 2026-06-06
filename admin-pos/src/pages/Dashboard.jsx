@@ -11,7 +11,17 @@ import Loans from './Loans';
 import Reports from './Reports';
 import Returns from './Returns';
 import Barcodes from './Barcodes';
-import logo from '../assets/logo.png';
+
+const PosLogo = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="32" height="32" rx="8" fill="#1a1a2e"/>
+    <rect x="1" y="1" width="30" height="30" rx="7" stroke="rgba(132,234,0,0.3)" strokeWidth="1"/>
+    <path d="M9 11h14l-2 10H11L9 11z" fill="#84ea00" fillOpacity="0.9"/>
+    <path d="M12 11c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="#84ea00" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    <circle cx="13" cy="23" r="1.2" fill="#84ea00"/>
+    <circle cx="20" cy="23" r="1.2" fill="#84ea00"/>
+  </svg>
+);
 
 const navItems = [
   { id: 'pos', label: 'POS' },
@@ -117,7 +127,7 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 w-full md:w-auto">
           <div className="flex items-center justify-between w-full md:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-white tracking-wide flex items-center gap-2.5">
-              <img src={logo} alt="ShopLK Logo" className="w-8 h-8 rounded-lg object-cover border border-white/10" />
+              <PosLogo />
               Shop<span className="text-brand-purple">LK</span>
             </h2>
             <button

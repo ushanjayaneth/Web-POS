@@ -1,13 +1,10 @@
 import axios from 'axios';
 
-const PRODUCTION_API_URL = 'https://web-pos-henna.vercel.app/api';
-const configuredApiUrl = import.meta.env.VITE_API_URL;
-const isLocalApiUrl = configuredApiUrl
-  && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\/api\/?$/i.test(configuredApiUrl);
-
+// Always use the hardcoded production URL in production builds.
+// In development, proxy to localhost via Vite's /api proxy.
 const API_BASE_URL = import.meta.env.PROD
-  ? (configuredApiUrl && !isLocalApiUrl ? configuredApiUrl : PRODUCTION_API_URL)
-  : (configuredApiUrl || '/api');
+  ? 'https://web-pos-henna.vercel.app/api'
+  : '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

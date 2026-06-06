@@ -3,7 +3,17 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, ShoppingBag } from 'lucide-react';
-import logo from '../assets/logo.png';
+
+const PosLogo = () => (
+  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="32" height="32" rx="8" fill="#1a1a2e"/>
+    <rect x="1" y="1" width="30" height="30" rx="7" stroke="rgba(132,234,0,0.3)" strokeWidth="1"/>
+    <path d="M9 11h14l-2 10H11L9 11z" fill="#84ea00" fillOpacity="0.9"/>
+    <path d="M12 11c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="#84ea00" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    <circle cx="13" cy="23" r="1.2" fill="#84ea00"/>
+    <circle cx="20" cy="23" r="1.2" fill="#84ea00"/>
+  </svg>
+);
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -36,7 +46,7 @@ const Login = () => {
         <div className="hidden lg:flex flex-col justify-between p-10 bg-[#0a0b12] border-r border-white/10">
           <div>
             <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-xl">
-              <img src={logo} alt="ShopLK POS Logo" className="w-6 h-6 rounded object-cover border border-white/10" />
+              <PosLogo />
               <span className="text-xl font-black tracking-wide">
                 Shop<span className="text-brand-purple">LK</span> POS
               </span>

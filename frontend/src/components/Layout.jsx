@@ -14,7 +14,20 @@ import {
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore, useCartStore } from '../store';
 import { assetBaseUrl } from '../utils/catalog';
-import logo from '../assets/logo.png';
+
+const BrandLogo = () => (
+  <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="34" height="34" rx="8" fill="url(#brandGrad)"/>
+    <path d="M11 13h12l-1.5 8.5H12.5L11 13z" fill="white" fillOpacity="0.95"/>
+    <path d="M14 13c0-1.657 1.343-3 3-3s3 1.343 3 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+    <defs>
+      <linearGradient id="brandGrad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#0f766e"/>
+        <stop offset="1" stopColor="#0d9488"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 const Layout = () => {
   const { user, isAuthenticated, logout, fetchUser } = useAuthStore();
@@ -55,7 +68,7 @@ const Layout = () => {
       <header className="site-header">
         <div className="container nav-shell">
           <Link to="/" className="brand" onClick={closeMenu} aria-label="ShoppingLK home">
-            <img src={logo} alt="ShoppingLK Logo" className="brand-logo" />
+            <BrandLogo />
             <span className="brand-text">ShoppingLK</span>
           </Link>
 
@@ -167,7 +180,7 @@ const Layout = () => {
         <div className="container footer-grid">
           <div>
             <Link to="/" className="brand footer-brand">
-              <img src={logo} alt="ShoppingLK Logo" className="brand-logo" />
+              <BrandLogo />
               <span className="brand-text">ShoppingLK</span>
             </Link>
             <p>Curated products, clear prices, and simple ordering for customers across Sri Lanka.</p>
