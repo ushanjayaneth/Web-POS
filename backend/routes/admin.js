@@ -91,6 +91,23 @@ const normalizeProductPayload = (body, existing = {}) => {
   };
 };
 
+// Lightweight product object for POS terminal (strips gallery images and sensitive fields).
+const toPosProduct = (product, id) => ({
+  id,
+  name: product.name,
+  slug: product.slug || '',
+  barcode: product.barcode || '',
+  price: product.price,
+  sale_price: product.sale_price ?? null,
+  stock: product.stock ?? 0,
+  category_name: product.category_name || '',
+  // Only send the first/cover image; gallery images are not needed on POS.
+  images: Array.isArray(product.images) && product.images[0]
+    ? [product.images[0]]
+    : [],
+  is_active: product.is_active === false ? 0 : Number(product.is_active ?? 1),
+});
+
 const productValidators = [
   body('name').trim().isLength({ min: 2, max: 120 }),
   body('slug').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 120 }).matches(/^[a-z0-9-]+$/),
@@ -109,6 +126,7 @@ const productValidators = [
 
 router.get('/products', [
   query('include_inactive').optional().isBoolean(),
+  query('pos_mode').optional().isBoolean(),
 ], async (req, res) => {
   if (failValidation(req, res)) return;
 
@@ -116,12 +134,13 @@ router.get('/products', [
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
     const includeInactive = req.query.include_inactive === 'true';
+    const posMode = req.query.pos_mode === 'true';
     const snapshot = await db.ref('products').once('value');
     const data = snapshot.val() || {};
     const products = Object.entries(data)
       .filter(([, product]) => !product.deleted_at)
       .filter(([, product]) => includeInactive || (product.is_active !== 0 && product.is_active !== false))
-      .map(([id, product]) => publicProductFields(product, id))
+      .map(([id, product]) => posMode ? toPosProduct(product, id) : publicProductFields(product, id))
       .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
     res.json({ success: true, data: products });

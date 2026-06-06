@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, ShoppingBag } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -35,7 +36,7 @@ const Login = () => {
         <div className="hidden lg:flex flex-col justify-between p-10 bg-[#0a0b12] border-r border-white/10">
           <div>
             <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-xl">
-              <ShoppingBag className="text-brand-green" size={24} />
+              <img src={logo} alt="ShopLK POS Logo" className="w-6 h-6 rounded object-cover border border-white/10" />
               <span className="text-xl font-black tracking-wide">
                 Shop<span className="text-brand-purple">LK</span> POS
               </span>

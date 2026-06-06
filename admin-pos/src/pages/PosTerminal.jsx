@@ -6,6 +6,7 @@ import { useLang } from '../utils/translations';
 const PosTerminal = () => {
   const { lang, toggleLang, t } = useLang();
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [loanCustomers, setLoanCustomers] = useState([]);
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,29 +26,60 @@ const PosTerminal = () => {
 
   const searchInputRef = useRef(null);
 
-  const loadData = async () => {
+  // isInitial=true shows loading skeleton on first load; background polls stay silent
+  const loadProducts = async (isInitial = false, showError = false) => {
+    if (isInitial) setLoading(true);
     try {
-      const [prodRes, custRes] = await Promise.all([
-        adminApi.getProducts(),
-        adminApi.getLoanCustomers()
-      ]);
+      const prodRes = await adminApi.getPosProducts();
       setProducts((prodRes.data || []).filter(p => p.is_active !== 0 && p.is_active !== false));
-      setLoanCustomers(custRes.data || []);
     } catch (error) {
-      alert(error.message || 'Failed to load initial data.');
+      if (showError) {
+        alert(error.message || 'Failed to load products.');
+      }
+    } finally {
+      if (isInitial) setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
+  const loadLoanCustomers = async (showError = false) => {
+    try {
+      const custRes = await adminApi.getLoanCustomers();
+      setLoanCustomers(custRes.data || []);
+    } catch (error) {
+      if (showError) {
+        alert(error.message || 'Failed to load loan customers.');
+      }
+    }
+  };
 
-    const refreshTimer = window.setInterval(loadData, 10000);
-    const refreshOnFocus = () => loadData();
+  // Keep products on the fastest path; customer data loads in the background.
+  const loadData = async (isInitial = false) => {
+    const productsPromise = loadProducts(isInitial, isInitial);
+    loadLoanCustomers(false);
+    await productsPromise;
+  };
+
+  useEffect(() => {
+    loadProducts(true, true);
+    loadLoanCustomers(false);
+
+    const productRefreshTimer = window.setInterval(() => loadProducts(false), 5000);
+    const loanRefreshTimer = window.setInterval(() => loadLoanCustomers(false), 60000);
+    const refreshOnFocus = () => {
+      loadProducts(false);
+      loadLoanCustomers(false);
+    };
+    const refreshOnVisible = () => {
+      if (!document.hidden) refreshOnFocus();
+    };
     window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnVisible);
 
     return () => {
-      window.clearInterval(refreshTimer);
+      window.clearInterval(productRefreshTimer);
+      window.clearInterval(loanRefreshTimer);
       window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnVisible);
     };
   }, []);
 
@@ -126,7 +158,6 @@ const PosTerminal = () => {
       return;
     }
 
-    // Determine code prefix
     const generatedId = 'CUSTOM_' + Math.random().toString(36).substring(2, 9).toUpperCase();
     const finalPrice = customForm.isCredit ? -Math.abs(price) : price;
     const finalName = customForm.isCredit ? `[CREDIT] ${customForm.name}` : customForm.name;
@@ -137,7 +168,7 @@ const PosTerminal = () => {
       price: finalPrice,
       cart_price: finalPrice,
       quantity: qty,
-      stock: 99999, // dummy
+      stock: 99999,
       is_custom: true
     };
 
@@ -167,7 +198,6 @@ const PosTerminal = () => {
   const subtotal = cart.reduce((sum, item) => sum + (item.cart_price * item.quantity), 0);
   const total = Math.max(0, subtotal - discount);
 
-  // Quick Cash Handlers
   const addQuickCash = (amt) => {
     const current = parseFloat(cashReceived) || 0;
     setCashReceived((current + amt).toString());
@@ -194,7 +224,7 @@ const PosTerminal = () => {
     try {
       const saleData = {
         items: cart.map(item => ({
-          product_id: item.is_custom ? null : item.id,
+          product_id: item.id,
           name: item.is_custom ? item.name : undefined,
           price: item.is_custom ? item.cart_price : undefined,
           quantity: item.quantity,
@@ -208,14 +238,13 @@ const PosTerminal = () => {
 
       await adminApi.createSale(saleData);
 
-      // Clear states
       setCart([]);
       setDiscount(0);
       setCashReceived('');
       setSelectedCustomer('');
       setShowLoanModal(false);
 
-      await loadData();
+      await loadData(false);
       alert(paymentMethod === 'loan' ? 'Loan sale recorded successfully!' : 'Sale completed successfully!');
     } catch (err) {
       console.error(err);
@@ -225,7 +254,6 @@ const PosTerminal = () => {
 
   const calculatedChange = Math.max(0, (parseFloat(cashReceived) || 0) - total);
 
-  // Filter loan customers
   const filteredCustomers = loanCustomers.filter(c =>
     c.name.toLowerCase().includes(loanCustomerSearch.toLowerCase()) ||
     (c.phone && c.phone.includes(loanCustomerSearch))
@@ -253,48 +281,64 @@ const PosTerminal = () => {
             onClick={() => setShowCustomModal(true)}
             className="bg-[#1e1b4b] hover:bg-[#312e81] border border-brand-purple/40 text-brand-purple px-4 py-3 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-all"
           >
-            {t('addCustomItem') || '➕ Custom'}
+            {t('addCustomItem') || '+ Custom'}
           </button>
 
           <button
             onClick={toggleLang}
             className="bg-[#0a0a0a] border border-gray-800 text-gray-400 hover:text-white px-4 py-3 rounded-xl font-black text-xs md:text-sm uppercase tracking-wider transition-all"
           >
-            {lang === 'si' ? 'English' : 'සිංහල'}
+            {lang === 'si' ? 'English' : 'Sinhala'}
           </button>
         </div>
 
         {/* Product Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 flex-1 pb-24 overflow-y-auto pr-1">
-          {filteredProducts.map(product => (
-            <div
-              key={product.id}
-              onClick={() => addToCart(product)}
-              className={`bg-brand-card p-3 rounded-2xl border ${product.stock <= 0 ? 'opacity-40 cursor-not-allowed border-red-900/50' : 'cursor-pointer border-white/5 hover:border-brand-purple hover:-translate-y-0.5'} transition-all flex flex-col justify-between`}
-            >
-              <div className="h-24 md:h-28 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl mb-2 overflow-hidden relative p-1">
-                {product.images && product.images[0] ? (
-                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-600"><ShoppingBag size={20} /></div>
-                )}
-                {product.stock <= 0 && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Out of Stock</span>
-                  </div>
-                )}
+          {loading ? (
+            // Loading skeleton — shows instantly while data fetches
+            [...Array(8)].map((_, i) => (
+              <div key={i} className="bg-brand-card p-3 rounded-2xl border border-white/5 animate-pulse">
+                <div className="h-24 md:h-28 bg-white/5 rounded-xl mb-2" />
+                <div className="h-3 bg-white/5 rounded mb-2 w-3/4" />
+                <div className="h-3 bg-white/5 rounded w-1/2" />
               </div>
-              <div>
-                <h3 className="font-bold text-gray-200 line-clamp-2 leading-tight text-xs mb-1.5">{product.name}</h3>
-                <div className="flex justify-between items-end mt-auto flex-wrap gap-1">
-                  <span className="font-black text-brand-purple text-xs md:text-sm">Rs. {(product.sale_price || product.price).toLocaleString()}</span>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${product.stock > 5 ? 'bg-green-500/20 text-green-400' : product.stock > 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
-                    {product.stock} {t('qty')}
-                  </span>
+            ))
+          ) : filteredProducts.length === 0 && searchQuery ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-gray-600">
+              <ShoppingBag size={32} className="mb-2 opacity-30" />
+              <p className="text-xs font-bold">{t('search') || 'No results found'}</p>
+            </div>
+          ) : (
+            filteredProducts.map(product => (
+              <div
+                key={product.id}
+                onClick={() => addToCart(product)}
+                className={`bg-brand-card p-3 rounded-2xl border ${product.stock <= 0 ? 'opacity-40 cursor-not-allowed border-red-900/50' : 'cursor-pointer border-white/5 hover:border-brand-purple hover:-translate-y-0.5'} transition-all flex flex-col justify-between`}
+              >
+                <div className="h-24 md:h-28 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl mb-2 overflow-hidden relative p-1">
+                  {product.images && product.images[0] ? (
+                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-600"><ShoppingBag size={20} /></div>
+                  )}
+                  {product.stock <= 0 && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <span className="bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Out of Stock</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-200 line-clamp-2 leading-tight text-xs mb-1.5">{product.name}</h3>
+                  <div className="flex justify-between items-end mt-auto flex-wrap gap-1">
+                    <span className="font-black text-brand-purple text-xs md:text-sm">Rs. {(product.sale_price || product.price).toLocaleString()}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${product.stock > 5 ? 'bg-green-500/20 text-green-400' : product.stock > 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {product.stock} {t('qty')}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -393,7 +437,6 @@ const PosTerminal = () => {
               <span>Rs. {subtotal.toFixed(2)}</span>
             </div>
 
-            {/* Show credit info indicator if any negative items */}
             {cart.some(item => item.price < 0) && (
               <div className="flex items-center gap-1.5 text-[10px] text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">
                 <AlertTriangle size={12} /> Exchanged items applied as credit reduction.
@@ -441,8 +484,8 @@ const PosTerminal = () => {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0d1117] border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-black text-white">➕ Add Quick Custom Item</h3>
-              <button onClick={() => setShowCustomModal(false)} className="text-gray-600 hover:text-white">✕</button>
+              <h3 className="text-base font-black text-white">Add Quick Custom Item</h3>
+              <button onClick={() => setShowCustomModal(false)} className="text-gray-600 hover:text-white">X</button>
             </div>
 
             <div className="space-y-3.5">
@@ -477,7 +520,7 @@ const PosTerminal = () => {
                   className="w-4 h-4 accent-brand-purple"
                 />
                 <label htmlFor="isCredit" className="text-xs text-yellow-500 font-bold cursor-pointer">
-                  ↩ Return Exchange Credit (Negative Price)
+                  Return Exchange Credit (Negative Price)
                 </label>
               </div>
 
@@ -516,8 +559,8 @@ const PosTerminal = () => {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0d1117] border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-black text-white">💳 Select Loan Customer</h3>
-              <button onClick={() => setShowLoanModal(false)} className="text-gray-600 hover:text-white">✕</button>
+              <h3 className="text-base font-black text-white">Select Loan Customer</h3>
+              <button onClick={() => setShowLoanModal(false)} className="text-gray-600 hover:text-white">X</button>
             </div>
 
             <input
@@ -544,7 +587,7 @@ const PosTerminal = () => {
                       <div className="font-bold text-white">{c.name}</div>
                       <div className="text-[10px] text-gray-500">{c.phone || 'No phone'}</div>
                     </div>
-                    {selectedCustomer === c.id && <span className="text-brand-purple font-black text-sm">✓</span>}
+                    {selectedCustomer === c.id && <span className="text-brand-purple font-black text-sm">Selected</span>}
                   </div>
                 ))
               )}

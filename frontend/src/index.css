@@ -206,6 +206,13 @@ button:disabled {
   font-weight: 900;
 }
 
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius);
+  object-fit: cover;
+}
+
 .brand-text {
   font-size: 1.08rem;
 }

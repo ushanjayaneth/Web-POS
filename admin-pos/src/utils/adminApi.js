@@ -26,11 +26,14 @@ const getAuthHeaders = async () => {
 
 const request = async (path, options = {}) => {
   const headers = await getAuthHeaders();
+  const { headers: optionHeaders, ...restOptions } = options;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    cache: 'no-store',
+    ...restOptions,
     headers: {
       ...headers,
-      ...(options.headers || {}),
+      ...(optionHeaders || {}),
     },
   });
 
@@ -45,7 +48,9 @@ const request = async (path, options = {}) => {
 };
 
 const adminApi = {
-  getProducts: () => request('/admin/products?include_inactive=true'),
+  getProducts: () => request(`/admin/products?include_inactive=true&_ts=${Date.now()}`),
+  // Lightweight POS payload: cover image only, no cost price.
+  getPosProducts: () => request(`/admin/products?include_inactive=true&pos_mode=true&_ts=${Date.now()}`),
   getOrders: () => request('/admin/orders'),
   updateOrderStatus: (id, status) => request(`/admin/orders/${id}/status`, {
     method: 'PUT',

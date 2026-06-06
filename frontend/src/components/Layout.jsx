@@ -14,6 +14,7 @@ import {
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore, useCartStore } from '../store';
 import { assetBaseUrl } from '../utils/catalog';
+import logo from '../assets/logo.png';
 
 const Layout = () => {
   const { user, isAuthenticated, logout, fetchUser } = useAuthStore();
@@ -54,7 +55,7 @@ const Layout = () => {
       <header className="site-header">
         <div className="container nav-shell">
           <Link to="/" className="brand" onClick={closeMenu} aria-label="ShoppingLK home">
-            <span className="brand-mark">S</span>
+            <img src={logo} alt="ShoppingLK Logo" className="brand-logo" />
             <span className="brand-text">ShoppingLK</span>
           </Link>
 
@@ -166,7 +167,7 @@ const Layout = () => {
         <div className="container footer-grid">
           <div>
             <Link to="/" className="brand footer-brand">
-              <span className="brand-mark">S</span>
+              <img src={logo} alt="ShoppingLK Logo" className="brand-logo" />
               <span className="brand-text">ShoppingLK</span>
             </Link>
             <p>Curated products, clear prices, and simple ordering for customers across Sri Lanka.</p>

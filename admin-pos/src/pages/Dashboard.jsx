@@ -11,6 +11,7 @@ import Loans from './Loans';
 import Reports from './Reports';
 import Returns from './Returns';
 import Barcodes from './Barcodes';
+import logo from '../assets/logo.png';
 
 const navItems = [
   { id: 'pos', label: 'POS' },
@@ -115,8 +116,8 @@ const Dashboard = () => {
       <div className="bg-brand-dark border-b border-white/5 flex flex-col md:flex-row md:h-20 items-center justify-between px-4 md:px-6 shrink-0 py-3 md:py-0 gap-4 md:gap-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 w-full md:w-auto">
           <div className="flex items-center justify-between w-full md:w-auto">
-            <h2 className="text-xl md:text-2xl font-black text-white tracking-wide flex items-center gap-2">
-              <ShoppingBag size={24} className="text-white" />
+            <h2 className="text-xl md:text-2xl font-black text-white tracking-wide flex items-center gap-2.5">
+              <img src={logo} alt="ShopLK Logo" className="w-8 h-8 rounded-lg object-cover border border-white/10" />
               Shop<span className="text-brand-purple">LK</span>
             </h2>
             <button
