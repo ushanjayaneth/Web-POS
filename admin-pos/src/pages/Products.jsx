@@ -262,8 +262,8 @@ const Products = ({ isProfitVisible = false }) => {
           </div>
         ) : (
           products.map(product => (
-            <div key={product.id} className="bg-brand-card/50 rounded-2xl p-5 shadow-sm border border-white/5 hover:border-brand-purple hover:shadow-xl hover:shadow-brand-purple/10 transition-all duration-300 group">
-              <div className="flex gap-4">
+            <div key={product.id} className="bg-brand-card/50 rounded-2xl p-5 shadow-sm border border-white/5 hover:border-brand-purple hover:shadow-xl hover:shadow-brand-purple/10 transition-all duration-300 group h-fit">
+              <div className="flex gap-4 items-start">
                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/5 flex-shrink-0 relative group-hover:scale-105 transition-transform duration-300 p-1">
                   {product.images && product.images[0] ? (
                     <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain drop-shadow-md opacity-100" />
@@ -278,7 +278,7 @@ const Products = ({ isProfitVisible = false }) => {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 flex flex-col justify-between">
+                <div className="flex-1 flex flex-col gap-2">
                   <div>
                     <div className="flex justify-between items-start">
                       <h3 className="font-bold text-gray-200 line-clamp-1">{product.name}</h3>
@@ -302,8 +302,7 @@ const Products = ({ isProfitVisible = false }) => {
                       </span>
                     )}
                   </div>
-                  
-                  <div className="mt-3 flex items-end justify-between">
+                  <div className="flex items-end justify-between">
                     <div>
                       {product.sale_price ? (
                         <div className="flex items-center gap-2">

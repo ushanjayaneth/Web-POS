@@ -161,7 +161,7 @@ const Dashboard = () => {
             </button>
           </div>
 
-          <nav className="flex items-center gap-2 overflow-x-auto w-full pb-2 md:pb-0 custom-scrollbar hide-scrollbar-mobile">
+          <nav className="flex items-center gap-2 overflow-x-auto w-full hide-scrollbar">
             {navItems.map((item) => (
               <button
                 key={item.id}
