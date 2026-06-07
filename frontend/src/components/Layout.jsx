@@ -10,6 +10,7 @@ import {
   FiShoppingCart,
   FiUser,
   FiX,
+  FiMessageCircle,
 } from 'react-icons/fi';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore, useCartStore } from '../store';
@@ -76,6 +77,7 @@ const Layout = () => {
             <NavLink to="/" end>Home</NavLink>
             <NavLink to="/products">Products</NavLink>
             <NavLink to="/wishlist">Wishlist</NavLink>
+            <NavLink to="/seller/dashboard">Seller Portal</NavLink>
           </nav>
 
           <form className="site-search desktop-search" onSubmit={submitSearch}>
@@ -100,13 +102,13 @@ const Layout = () => {
                   {itemCount > 0 && <span className="cart-badge">{itemCount}</span>}
                 </Link>
                 {user?.avatar ? (
-                  <span className="user-avatar">
+                  <Link to="/profile" className="user-avatar">
                     <img src={`${assetBaseUrl}${user.avatar}`} alt={user.first_name || 'User'} />
-                  </span>
+                  </Link>
                 ) : (
-                  <span className="user-avatar" aria-label="Signed in">
+                  <Link to="/profile" className="user-avatar" aria-label="Signed in">
                     <FiUser />
-                  </span>
+                  </Link>
                 )}
                 <button type="button" className="icon-button" onClick={handleLogout} aria-label="Logout">
                   <FiLogOut />
@@ -159,8 +161,13 @@ const Layout = () => {
               <NavLink to="/products" onClick={closeMenu}>Products</NavLink>
               <NavLink to="/wishlist" onClick={closeMenu}>Wishlist</NavLink>
               <NavLink to="/cart" onClick={closeMenu}>Cart</NavLink>
+              <NavLink to="/seller/dashboard" onClick={closeMenu}>Seller Portal</NavLink>
               {isAuthenticated ? (
-                <button type="button" onClick={handleLogout}>Logout</button>
+                <>
+                  <NavLink to="/profile" onClick={closeMenu}>My Profile</NavLink>
+                  <NavLink to="/order-history" onClick={closeMenu}>Order History</NavLink>
+                  <button type="button" onClick={handleLogout}>Logout</button>
+                </>
               ) : (
                 <>
                   <NavLink to="/login" onClick={closeMenu}>Login</NavLink>
@@ -193,8 +200,9 @@ const Layout = () => {
           </div>
           <div>
             <h3>Account</h3>
-            <Link to="/login">Login</Link>
-            <Link to="/register">Create account</Link>
+            <Link to="/profile">My Account</Link>
+            <Link to="/order-history">Order History</Link>
+            <Link to="/seller/dashboard">Seller Portal</Link>
           </div>
           <div>
             <h3>Service</h3>
@@ -207,6 +215,33 @@ const Layout = () => {
           <span>© {new Date().getFullYear()} ShoppingLK. All rights reserved.</span>
         </div>
       </footer>
+
+      {/* Floating WhatsApp support button */}
+      <a 
+        href="https://wa.me/94776338514?text=Hello%20ShoppingLK,%20I%20have%20a%20question."
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '80px',
+          right: '20px',
+          background: '#25D366',
+          color: '#fff',
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 999,
+          fontSize: '24px',
+          textDecoration: 'none'
+        }}
+        aria-label="Chat on WhatsApp"
+      >
+        <FiMessageCircle size={28} />
+      </a>
 
       <nav className="bottom-nav" aria-label="Mobile navigation">
         <NavLink to="/" end>

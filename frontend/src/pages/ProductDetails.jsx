@@ -10,6 +10,7 @@ import {
   FiShoppingCart,
   FiStar,
   FiTruck,
+  FiMessageCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
@@ -182,6 +183,17 @@ const ProductDetails = () => {
               <FiShoppingCart />
               Add to cart
             </button>
+
+            <a
+              href={`https://wa.me/94776338514?text=Hello%20ShoppingLK,%20I%20have%20a%20question%20about%20this%20product:%20${encodeURIComponent(product.name)}%20(${window.location.href})`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary detail-add"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', borderColor: '#25D366', color: '#25D366', textDecoration: 'none' }}
+            >
+              <FiMessageCircle />
+              Ask on WhatsApp
+            </a>
 
             <button type="button" className="icon-button detail-heart" onClick={handleWishlist} aria-label="Add to wishlist">
               <FiHeart />

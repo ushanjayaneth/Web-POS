@@ -19,6 +19,8 @@ const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const couponRoutes = require('./routes/coupons');
 const addressRoutes = require('./routes/addresses');
+const sellerRoutes = require('./routes/sellers');
+
 
 // Firebase is initialized on demand via database/firebase.js
 
@@ -53,6 +55,13 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { success: false, message: 'Too many login attempts. Please try again later.' },
+});
+
+// Rate limiting - Seller registration (very strict — 5 per hour per IP)
+const sellerRegisterLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many seller registration attempts. Please try again later.' },
 });
 
 // CORS configuration
@@ -108,6 +117,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/sellers/register', sellerRegisterLimiter);
+app.use('/api/sellers', sellerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

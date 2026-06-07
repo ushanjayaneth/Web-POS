@@ -2,12 +2,39 @@
   "rules": {
     ".read": false,
     ".write": false,
+
     "admins": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": false
       }
     },
+
+    "config": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+    },
+
+    "blacklist": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+    },
+
+    "sellers": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$sellerId": {
+        ".read": "auth != null && auth.uid == $sellerId",
+        ".write": false
+      }
+    },
+
+    "email_verifications": {
+      "$uid": {
+        ".read": false,
+        ".write": false
+      }
+    },
+
     "products": {
       ".read": true,
       "$productId": {
@@ -57,45 +84,88 @@
         }
       }
     },
+
+    "seller_products": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$productId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
     "sales": {
       ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
       "$saleId": {
         ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
       }
     },
+
     "orders": {
       ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
       "$orderId": {
         ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
       }
     },
+
     "users": {
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).child('active').val() == true)",
         ".write": "auth != null && auth.uid == $uid"
       }
     },
+
     "cart": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid"
       }
     },
+
     "wishlist": {
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid"
       }
     },
+
     "reviews": {
       ".read": true,
       "$reviewId": {
         ".write": "auth != null"
       }
     },
+
     "categories": {
       ".read": true,
       "$categoryId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+
+    "coupons": {
+      ".read": true,
+      "$couponId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+
+    "loan_customers": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$customerId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+
+    "loans": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$loanId": {
+        ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
+      }
+    },
+
+    "supplier_returns": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true",
+      "$returnId": {
         ".write": "auth != null && root.child('admins').child(auth.uid).child('active').val() == true"
       }
     }

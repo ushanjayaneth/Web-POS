@@ -91,3 +91,43 @@ export const useCartStore = create((set, get) => ({
     return res;
   }
 }));
+
+export const useSellerAuthStore = create((set) => ({
+  seller: null,
+  isSellerAuthenticated: false,
+  isSellerLoading: true,
+  sellerLogin: async (email, password) => {
+    const res = await api.post('/sellers/login', { email, password });
+    if (res.success) {
+      localStorage.setItem('sellerAccessToken', res.data.accessToken);
+      localStorage.setItem('sellerRefreshToken', res.data.refreshToken);
+      set({ seller: res.data.seller, isSellerAuthenticated: true, isSellerLoading: false });
+    }
+    return res;
+  },
+  sellerRegister: async (data) => {
+    const res = await api.post('/sellers/register', data);
+    return res;
+  },
+  sellerLogout: async () => {
+    try {
+      await api.post('/sellers/logout', { refreshToken: localStorage.getItem('sellerRefreshToken') });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      localStorage.removeItem('sellerAccessToken');
+      localStorage.removeItem('sellerRefreshToken');
+      set({ seller: null, isSellerAuthenticated: false, isSellerLoading: false });
+    }
+  },
+  fetchSeller: async () => {
+    try {
+      const res = await api.get('/sellers/me');
+      if (res.success) {
+        set({ seller: res.data, isSellerAuthenticated: true, isSellerLoading: false });
+      }
+    } catch (err) {
+      set({ seller: null, isSellerAuthenticated: false, isSellerLoading: false });
+    }
+  }
+}));

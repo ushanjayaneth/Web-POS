@@ -11,6 +11,10 @@ import Loans from './Loans';
 import Reports from './Reports';
 import Returns from './Returns';
 import Barcodes from './Barcodes';
+import SellersPanel from '../components/panels/SellersPanel';
+import UsersPanel from '../components/panels/UsersPanel';
+import CouponsPanel from '../components/panels/CouponsPanel';
+import SettingsPanel from '../components/panels/SettingsPanel';
 
 const PosLogo = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -31,6 +35,10 @@ const navItems = [
   { id: 'returns', label: 'RETURNS' },
   { id: 'barcodes', label: 'BARCODES' },
   { id: 'orders', label: 'ORDERS' },
+  { id: 'sellers', label: 'SELLERS' },
+  { id: 'users', label: 'USERS' },
+  { id: 'coupons', label: 'COUPONS' },
+  { id: 'settings', label: 'SETTINGS' },
 ];
 
 const Dashboard = () => {
@@ -102,6 +110,13 @@ const Dashboard = () => {
   };
 
   const renderContent = () => {
+    // Add scroll/padding container for modern layout integration of our new sections
+    const wrapPanel = (comp) => (
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 text-white custom-scrollbar">
+        {comp}
+      </div>
+    );
+
     switch (activeTab) {
       case 'products':
         return <Products isProfitVisible={isProfitVisible} />;
@@ -115,6 +130,14 @@ const Dashboard = () => {
         return <Returns />;
       case 'barcodes':
         return <Barcodes />;
+      case 'sellers':
+        return wrapPanel(<SellersPanel />);
+      case 'users':
+        return wrapPanel(<UsersPanel />);
+      case 'coupons':
+        return wrapPanel(<CouponsPanel />);
+      case 'settings':
+        return wrapPanel(<SettingsPanel />);
       case 'pos':
       default:
         return <PosTerminal isProfitVisible={isProfitVisible} />;

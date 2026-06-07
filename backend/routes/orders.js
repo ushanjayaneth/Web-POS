@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/firebase');
 const { protect } = require('../middleware/auth');
+const { sendOrderNotificationEmail } = require('../utils/mailer');
 const router = express.Router();
 
 const generateOrderNumber = () => `SLK${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -21,6 +22,13 @@ router.post('/', protect, async (req, res) => {
     // Since this is COD, payment method is assumed to be COD if not specified
     const method = payment_method || 'COD';
 
+    // Fetch shop settings from Firebase config
+    const configSnapshot = await db.ref('config/shop_settings').once('value');
+    const config = configSnapshot.val() || {};
+    const shopWhatsAppNumber = config.whatsapp_number || "94776338514"; // Default fallback
+    const freeShippingThreshold = Number(config.free_shipping_threshold) || 5000;
+    const standardShippingFee = Number(config.shipping_fee) || 350;
+
     let subtotal = 0;
     const orderItems = [];
     // Verify products from Firebase and calculate total
@@ -39,6 +47,7 @@ router.post('/', protect, async (req, res) => {
         price: price,
         quantity: item.quantity,
         variant: item.variant || null,
+        seller_id: product.seller_id || 'admin',
         total: price * item.quantity
       });
     }
@@ -47,7 +56,7 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid products in order.' });
     }
 
-    const shipping_fee = subtotal > 5000 ? 0 : 350; // Example shipping fee logic
+    const shipping_fee = subtotal >= freeShippingThreshold ? 0 : standardShippingFee;
     const total = subtotal + shipping_fee;
     const orderNumber = generateOrderNumber();
     const orderId = uuidv4();
@@ -75,9 +84,36 @@ router.post('/', protect, async (req, res) => {
     // Save order to Firebase (POS will automatically see this because it's Firebase)
     await db.ref(`orders/${orderId}`).set(orderData);
 
+    // Group items by seller to send notifications
+    const sellerItems = {};
+    orderItems.forEach(i => {
+      if (i.seller_id && i.seller_id !== 'admin') {
+        if (!sellerItems[i.seller_id]) {
+          sellerItems[i.seller_id] = [];
+        }
+        sellerItems[i.seller_id].push(i);
+      }
+    });
+
+    // Notify sellers via email asynchronously
+    for (const sellerId of Object.keys(sellerItems)) {
+      try {
+        const sellerSnapshot = await db.ref(`sellers/${sellerId}`).once('value');
+        const seller = sellerSnapshot.val();
+        if (seller && seller.email && seller.is_active && seller.approval_status === 'approved') {
+          sendOrderNotificationEmail(
+            seller.email,
+            seller.first_name || seller.shop_name,
+            orderNumber,
+            sellerItems[sellerId]
+          ).catch(e => console.error(`Failed to send email to seller ${sellerId}:`, e.message));
+        }
+      } catch (err) {
+        console.error(`Error notifying seller ${sellerId}:`, err.message);
+      }
+    }
+
     // Generate WhatsApp Message
-    const shopWhatsAppNumber = "947XXXXXXXX"; // TODO: Replace with actual shop number (e.g., 94712345678)
-    
     let waMessage = `*New Order: ${orderNumber}*\n`;
     waMessage += `Name: ${shipping_address.name || orderData.customer_name}\n`;
     waMessage += `Phone: ${shipping_address.phone}\n`;

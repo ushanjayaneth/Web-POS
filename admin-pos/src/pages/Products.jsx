@@ -292,6 +292,15 @@ const Products = ({ isProfitVisible = false }) => {
                       </div>
                     </div>
                     <p className="text-[10px] font-bold text-brand-green bg-[#0a0a0a] border border-gray-800 inline-block px-2 py-1 rounded-md mt-1 uppercase tracking-wider">{product.category_name}</p>
+                    {product.seller_id ? (
+                      <span className="text-[10px] font-bold text-brand-purple bg-brand-purple/10 border border-brand-purple/20 inline-block px-2 py-1 rounded-md mt-1 ml-2 uppercase tracking-wider">
+                        🏪 {product.seller_name || 'Seller'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-400 bg-gray-800/30 border border-gray-700/50 inline-block px-2 py-1 rounded-md mt-1 ml-2 uppercase tracking-wider">
+                        👑 Admin
+                      </span>
+                    )}
                   </div>
                   
                   <div className="mt-3 flex items-end justify-between">

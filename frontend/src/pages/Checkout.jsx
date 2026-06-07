@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FiCheckCircle, FiShoppingBag } from 'react-icons/fi';
+import { FiShoppingBag } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../store';
 import { formatCurrency, getImageUrl } from '../utils/catalog';
+import api from '../utils/api';
 
 const Checkout = () => {
   const { items, subtotal, clearCart } = useCartStore();
@@ -16,7 +17,7 @@ const Checkout = () => {
     city: '',
     district: 'Colombo',
   });
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Sri Lankan Courier Charges:
   // Western Province (Colombo, Gampaha, Kalutara): Rs. 350
@@ -31,31 +32,6 @@ const Checkout = () => {
     setFormData({ ...formData, [event.target.name]: event.target.value });
   };
 
-  const buildOrderMessage = () => {
-    const lines = [
-      'New Order Received',
-      '',
-      'Customer Details',
-      `Name: ${formData.name}`,
-      `Phone: ${formData.phone}`,
-      `Address: ${formData.address}, ${formData.city}, ${formData.district}`,
-      '',
-      'Order Items',
-      ...items.map((item) => {
-        const amount = Number(item.sale_price || item.price || 0) * Number(item.quantity || 1);
-        return `${item.quantity} x ${item.name} - ${formatCurrency(amount)}`;
-      }),
-      '',
-      `Subtotal: ${formatCurrency(subtotal)}`,
-      `Shipping: ${shipping === 0 ? 'Free' : formatCurrency(shipping)}`,
-      `Total: ${formatCurrency(total)}`,
-      '',
-      'Please confirm this order.',
-    ];
-
-    return lines.join('\n');
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -64,32 +40,45 @@ const Checkout = () => {
       return;
     }
 
-    const message = buildOrderMessage();
-    setIsSuccess(true);
-
+    setLoading(true);
     try {
-      await clearCart();
-    } catch {
-      toast.error('Cart could not be cleared automatically');
+      const res = await api.post('/orders', {
+        items: items.map(item => ({
+          product_id: item.product_id || item.id,
+          quantity: item.quantity,
+          variant: item.variant || null
+        })),
+        shipping_address: {
+          name: formData.name,
+          phone: formData.phone,
+          address: `${formData.address}, ${formData.city}, ${formData.district}`
+        },
+        payment_method: 'COD',
+        notes: ''
+      });
+
+      if (res.success) {
+        toast.success('Order placed successfully!');
+        try {
+          await clearCart();
+        } catch (err) {
+          console.error('Failed to clear cart:', err);
+        }
+        navigate('/order-confirmation', { 
+          state: { 
+            order: res.data, 
+            whatsapp_url: res.whatsapp_url 
+          } 
+        });
+      } else {
+        toast.error(res.message || 'Failed to place order');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to place order. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setTimeout(() => {
-      window.open(`https://wa.me/94776338514?text=${encodeURIComponent(message)}`, '_blank');
-      navigate('/');
-    }, 1600);
   };
-
-  if (isSuccess) {
-    return (
-      <div className="container success-state page-empty">
-        <Helmet><title>Order Placed | ShoppingLK</title></Helmet>
-        <FiCheckCircle />
-        <h1>Order placed</h1>
-        <p>We are opening WhatsApp so you can send the order to our team.</p>
-        <span>Redirecting...</span>
-      </div>
-    );
-  }
 
   if (items.length === 0) {
     return (
@@ -195,8 +184,8 @@ const Checkout = () => {
                 required
               />
             </label>
-            <button type="submit" className="btn btn-primary checkout-button">
-              Confirm order
+            <button type="submit" disabled={loading} className="btn btn-primary checkout-button">
+              {loading ? 'Processing Order...' : 'Confirm order'}
             </button>
           </form>
         </section>

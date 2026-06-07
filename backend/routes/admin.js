@@ -882,4 +882,567 @@ router.delete('/loans/:id', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// SELLER MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+const { sendSellerStatusEmail, sendOrderNotificationEmail } = require('../utils/mailer');
+
+// GET /sellers — list all seller applications
+router.get('/sellers', async (req, res) => {
+  try {
+    const snap = await db.ref('sellers').once('value');
+    const data = snap.val() || {};
+    const sellers = Object.entries(data).map(([id, s]) => {
+      const safe = { ...s, id };
+      delete safe.password;
+      delete safe.refresh_token;
+      return safe;
+    }).sort((a, b) => b.created_at - a.created_at);
+    res.json({ success: true, data: sellers });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to fetch sellers.' });
+  }
+});
+
+// GET /sellers/:id — single seller full details (admin only sees phone/NIC)
+router.get('/sellers/:id', async (req, res) => {
+  try {
+    const snap = await db.ref(`sellers/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Seller not found.' });
+    const seller = snap.val();
+    delete seller.password;
+    delete seller.refresh_token;
+    seller.id = req.params.id;
+    res.json({ success: true, data: seller });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch seller.' });
+  }
+});
+
+// PUT /sellers/:id/approve — approve seller application
+router.put('/sellers/:id/approve', [
+  body('note').optional().trim().isLength({ max: 300 }),
+], async (req, res) => {
+  try {
+    const snap = await db.ref(`sellers/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Seller not found.' });
+    const seller = snap.val();
+
+    await db.ref(`sellers/${req.params.id}`).update({
+      status: 'approved',
+      is_active: 1,
+      approval_note: req.body.note || '',
+      approved_at: Date.now(),
+      approved_by: req.admin.uid,
+      updated_at: Date.now(),
+    });
+
+    // Send approval email (non-blocking)
+    if (process.env.GMAIL_USER) {
+      sendSellerStatusEmail(seller.email, seller.owner_name, 'approved').catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Seller approved successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to approve seller.' });
+  }
+});
+
+// PUT /sellers/:id/reject — reject seller application
+router.put('/sellers/:id/reject', [
+  body('reason').trim().isLength({ min: 5, max: 300 }),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    const snap = await db.ref(`sellers/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Seller not found.' });
+    const seller = snap.val();
+
+    await db.ref(`sellers/${req.params.id}`).update({
+      status: 'rejected',
+      is_active: 0,
+      approval_note: req.body.reason,
+      rejected_at: Date.now(),
+      rejected_by: req.admin.uid,
+      updated_at: Date.now(),
+    });
+
+    if (process.env.GMAIL_USER) {
+      sendSellerStatusEmail(seller.email, seller.owner_name, 'rejected', req.body.reason).catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Seller application rejected.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to reject seller.' });
+  }
+});
+
+// PUT /sellers/:id/ban — ban seller (blocks phone + email + NIC/BR in blacklist)
+router.put('/sellers/:id/ban', [
+  body('reason').trim().isLength({ min: 5, max: 300 }),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    const snap = await db.ref(`sellers/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Seller not found.' });
+    const seller = snap.val();
+
+    // Add to blacklist
+    const blackRef = db.ref('blacklist').push();
+    const blacklistEntry = {
+      email: seller.email,
+      phone: seller.phone,
+      nic_br: seller.nic_br,
+      reason: req.body.reason,
+      seller_id: req.params.id,
+      banned_at: Date.now(),
+      banned_by: req.admin.uid,
+    };
+
+    await db.ref().update({
+      [`sellers/${req.params.id}/status`]: 'banned',
+      [`sellers/${req.params.id}/is_banned`]: 1,
+      [`sellers/${req.params.id}/is_active`]: 0,
+      [`sellers/${req.params.id}/ban_reason`]: req.body.reason,
+      [`sellers/${req.params.id}/banned_at`]: Date.now(),
+      [`sellers/${req.params.id}/banned_by`]: req.admin.uid,
+      [`sellers/${req.params.id}/refresh_token`]: null,
+      [`blacklist/${blackRef.key}`]: blacklistEntry,
+    });
+
+    res.json({ success: true, message: 'Seller banned and added to blacklist.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to ban seller.' });
+  }
+});
+
+// PUT /sellers/:id/unban — unban seller
+router.put('/sellers/:id/unban', async (req, res) => {
+  try {
+    const snap = await db.ref(`sellers/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Seller not found.' });
+    const seller = snap.val();
+
+    // Remove from blacklist
+    const blackSnap = await db.ref('blacklist').orderByChild('seller_id').equalTo(req.params.id).once('value');
+    const updates = {
+      [`sellers/${req.params.id}/status`]: 'approved',
+      [`sellers/${req.params.id}/is_banned`]: 0,
+      [`sellers/${req.params.id}/is_active`]: 1,
+      [`sellers/${req.params.id}/updated_at`]: Date.now(),
+    };
+    blackSnap.forEach(child => { updates[`blacklist/${child.key}`] = null; });
+    await db.ref().update(updates);
+
+    res.json({ success: true, message: 'Seller unbanned.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to unban seller.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// SELLER PRODUCT MANAGEMENT (approval flow)
+// ═══════════════════════════════════════════════════════
+
+// GET /seller-products — all products submitted by sellers
+router.get('/seller-products', async (req, res) => {
+  try {
+    const snap = await db.ref('seller_products').once('value');
+    const data = snap.val() || {};
+    const products = Object.entries(data)
+      .filter(([, p]) => !p.deleted_at)
+      .map(([id, p]) => ({ id, ...p }))
+      .sort((a, b) => b.created_at - a.created_at);
+    res.json({ success: true, data: products });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch seller products.' });
+  }
+});
+
+// PUT /seller-products/:id/approve — approve seller product → goes live on website
+router.put('/seller-products/:id/approve', async (req, res) => {
+  try {
+    const ref = db.ref(`seller_products/${req.params.id}`);
+    const snap = await ref.once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+    await ref.update({
+      approval_status: 'approved',
+      is_active: 1,
+      approved_at: Date.now(),
+      approved_by: req.admin.uid,
+      updated_at: Date.now(),
+    });
+
+    res.json({ success: true, message: 'Seller product approved and now live.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to approve product.' });
+  }
+});
+
+// PUT /seller-products/:id/reject — reject seller product
+router.put('/seller-products/:id/reject', [
+  body('reason').trim().isLength({ min: 5, max: 300 }),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    const ref = db.ref(`seller_products/${req.params.id}`);
+    const snap = await ref.once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Product not found.' });
+
+    await ref.update({
+      approval_status: 'rejected',
+      is_active: 0,
+      rejection_reason: req.body.reason,
+      rejected_at: Date.now(),
+      rejected_by: req.admin.uid,
+      updated_at: Date.now(),
+    });
+
+    res.json({ success: true, message: 'Seller product rejected.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to reject product.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// USER MANAGEMENT (Admin)
+// ═══════════════════════════════════════════════════════
+
+// GET /users — list all customers
+router.get('/users', async (req, res) => {
+  try {
+    const snap = await db.ref('users').once('value');
+    const data = snap.val() || {};
+    const users = Object.entries(data).map(([id, u]) => {
+      const safe = {
+        id,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        email: u.email,
+        phone: u.phone || null,
+        role: u.role,
+        is_active: u.is_active,
+        is_banned: u.is_banned || 0,
+        is_verified: u.is_verified || 0,
+        created_at: u.created_at,
+        last_login: u.last_login || null,
+      };
+      return safe;
+    }).sort((a, b) => b.created_at - a.created_at);
+    res.json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch users.' });
+  }
+});
+
+// PUT /users/:id/ban — ban customer (email + phone blacklist)
+router.put('/users/:id/ban', [
+  body('reason').trim().isLength({ min: 5, max: 300 }),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    const snap = await db.ref(`users/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'User not found.' });
+    const user = snap.val();
+
+    const blackRef = db.ref('blacklist').push();
+    await db.ref().update({
+      [`users/${req.params.id}/is_banned`]: 1,
+      [`users/${req.params.id}/is_active`]: 0,
+      [`users/${req.params.id}/ban_reason`]: req.body.reason,
+      [`users/${req.params.id}/banned_at`]: Date.now(),
+      [`users/${req.params.id}/refresh_token`]: null,
+      [`blacklist/${blackRef.key}`]: {
+        email: user.email,
+        phone: user.phone || null,
+        reason: req.body.reason,
+        user_id: req.params.id,
+        banned_at: Date.now(),
+        banned_by: req.admin.uid,
+      },
+    });
+
+    res.json({ success: true, message: 'User banned.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to ban user.' });
+  }
+});
+
+// PUT /users/:id/unban — unban customer
+router.put('/users/:id/unban', async (req, res) => {
+  try {
+    const snap = await db.ref(`users/${req.params.id}`).once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    const blackSnap = await db.ref('blacklist').orderByChild('user_id').equalTo(req.params.id).once('value');
+    const updates = {
+      [`users/${req.params.id}/is_banned`]: 0,
+      [`users/${req.params.id}/is_active`]: 1,
+      [`users/${req.params.id}/updated_at`]: Date.now(),
+    };
+    blackSnap.forEach(child => { updates[`blacklist/${child.key}`] = null; });
+    await db.ref().update(updates);
+
+    res.json({ success: true, message: 'User unbanned.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to unban user.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// COUPON MANAGEMENT (Admin CRUD)
+// ═══════════════════════════════════════════════════════
+
+// GET /coupons
+router.get('/coupons', async (req, res) => {
+  try {
+    const snap = await db.ref('coupons').once('value');
+    const data = snap.val() || {};
+    const coupons = Object.entries(data).map(([id, c]) => ({ id, ...c })).sort((a, b) => b.created_at - a.created_at);
+    res.json({ success: true, data: coupons });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch coupons.' });
+  }
+});
+
+// POST /coupons
+router.post('/coupons', [
+  body('code').trim().toUpperCase().isLength({ min: 3, max: 30 }).matches(/^[A-Z0-9_-]+$/),
+  body('type').isIn(['percentage', 'fixed']),
+  body('value').isFloat({ min: 0.01 }),
+  body('min_order').optional({ nullable: true }).isFloat({ min: 0 }),
+  body('max_uses').optional({ nullable: true }).isInt({ min: 1 }),
+  body('expires_at').optional({ nullable: true }).isISO8601(),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    // Check duplicate code
+    const existing = await db.ref('coupons').orderByChild('code').equalTo(req.body.code.toUpperCase()).once('value');
+    if (existing.exists()) return res.status(409).json({ success: false, message: 'Coupon code already exists.' });
+
+    const ref = db.ref('coupons').push();
+    const coupon = {
+      code: req.body.code.toUpperCase(),
+      type: req.body.type,
+      value: Number(req.body.value),
+      min_order: req.body.min_order ? Number(req.body.min_order) : 0,
+      max_uses: req.body.max_uses ? Number(req.body.max_uses) : null,
+      uses_count: 0,
+      expires_at: req.body.expires_at ? new Date(req.body.expires_at).getTime() : null,
+      is_active: 1,
+      created_by: req.admin.uid,
+      created_at: Date.now(),
+    };
+    await ref.set(coupon);
+    res.status(201).json({ success: true, data: { id: ref.key, ...coupon } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to create coupon.' });
+  }
+});
+
+// PUT /coupons/:id
+router.put('/coupons/:id', [
+  body('is_active').optional().isIn([0, 1]),
+  body('value').optional().isFloat({ min: 0.01 }),
+  body('expires_at').optional({ nullable: true }),
+], async (req, res) => {
+  try {
+    const ref = db.ref(`coupons/${req.params.id}`);
+    const snap = await ref.once('value');
+    if (!snap.exists()) return res.status(404).json({ success: false, message: 'Coupon not found.' });
+
+    const allowed = ['is_active', 'value', 'min_order', 'max_uses', 'expires_at'];
+    const updates = { updated_at: Date.now(), updated_by: req.admin.uid };
+    allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+    await ref.update(updates);
+    res.json({ success: true, message: 'Coupon updated.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to update coupon.' });
+  }
+});
+
+// DELETE /coupons/:id
+router.delete('/coupons/:id', async (req, res) => {
+  try {
+    await db.ref(`coupons/${req.params.id}`).remove();
+    res.json({ success: true, message: 'Coupon deleted.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete coupon.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// SHOP SETTINGS
+// ═══════════════════════════════════════════════════════
+
+// GET /settings
+router.get('/settings', async (req, res) => {
+  try {
+    const snap = await db.ref('config').once('value');
+    res.json({ success: true, data: snap.val() || {} });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch settings.' });
+  }
+});
+
+// PUT /settings
+router.put('/settings', [
+  body('whatsapp_number').optional().trim().isLength({ min: 10, max: 15 }),
+  body('shop_name').optional().trim().isLength({ min: 2, max: 100 }),
+  body('free_delivery_threshold').optional().isFloat({ min: 0 }),
+  body('delivery_fee').optional().isFloat({ min: 0 }),
+], async (req, res) => {
+  try {
+    const allowed = ['whatsapp_number', 'shop_name', 'shop_address', 'free_delivery_threshold', 'delivery_fee'];
+    const updates = { updated_at: Date.now(), updated_by: req.admin.uid };
+    allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+    await db.ref('config').update(updates);
+    res.json({ success: true, message: 'Settings saved.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to save settings.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// ORDER APPROVAL + SELLER NOTIFICATION
+// ═══════════════════════════════════════════════════════
+
+// PUT /orders/:id/approve-and-assign
+router.put('/orders/:id/approve-and-assign', [
+  body('seller_id').trim().isLength({ min: 6, max: 160 }),
+], async (req, res) => {
+  if (failValidation(req, res)) return;
+  try {
+    const orderRef = db.ref(`orders/${req.params.id}`);
+    const orderSnap = await orderRef.once('value');
+    const order = orderSnap.val();
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found.' });
+
+    const sellerSnap = await db.ref(`sellers/${req.body.seller_id}`).once('value');
+    const seller = sellerSnap.val();
+    if (!seller) return res.status(404).json({ success: false, message: 'Seller not found.' });
+
+    await orderRef.update({
+      status: 'confirmed',
+      assigned_seller_id: req.body.seller_id,
+      assigned_seller_name: seller.business_name,
+      approved_at: Date.now(),
+      approved_by: req.admin.uid,
+      updated_at: Date.now(),
+    });
+
+    // Generate WhatsApp notification URL for seller
+    const shopWA = process.env.SHOP_WHATSAPP || '0776338514';
+    let waMsg = `*New Order Assigned — ${order.order_number}*\n`;
+    waMsg += `Customer: ${order.customer_name}\n`;
+    waMsg += `Phone: ${order.shipping_address?.phone}\n`;
+    waMsg += `Address: ${order.shipping_address?.address}\n\nItems:\n`;
+    (order.items || []).forEach(i => { waMsg += `- ${i.name} ×${i.quantity} = Rs.${i.total}\n`; });
+    waMsg += `\nTotal: Rs.${order.total}`;
+
+    const sellerWaUrl = `https://wa.me/${seller.phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`;
+
+    // Also notify via email (non-blocking)
+    if (process.env.GMAIL_USER && seller.email) {
+      sendOrderNotificationEmail(seller.email, seller.owner_name, order.order_number, order.items || []).catch(console.error);
+    }
+
+    res.json({
+      success: true,
+      message: 'Order approved and assigned to seller.',
+      seller_whatsapp_url: sellerWaUrl,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to approve order.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD STATS
+// ═══════════════════════════════════════════════════════
+
+// GET /dashboard-stats
+router.get('/dashboard-stats', async (req, res) => {
+  try {
+    const [sellersSnap, usersSnap, ordersSnap, sellerProductsSnap, salesSnap] = await Promise.all([
+      db.ref('sellers').once('value'),
+      db.ref('users').once('value'),
+      db.ref('orders').once('value'),
+      db.ref('seller_products').once('value'),
+      db.ref('sales').once('value'),
+    ]);
+
+    const sellers = sellersSnap.val() || {};
+    const users = usersSnap.val() || {};
+    const orders = ordersSnap.val() || {};
+    const sellerProducts = sellerProductsSnap.val() || {};
+    const sales = salesSnap.val() || {};
+
+    const pendingSellers = Object.values(sellers).filter(s => s.status === 'pending').length;
+    const approvedSellers = Object.values(sellers).filter(s => s.status === 'approved').length;
+    const pendingProducts = Object.values(sellerProducts).filter(p => p.approval_status === 'pending' && !p.deleted_at).length;
+    const totalUsers = Object.keys(users).length;
+    const pendingOrders = Object.values(orders).filter(o => o.status === 'pending').length;
+
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todaySales = Object.values(sales).filter(s => s.created_at >= todayStart.getTime() && !s.isReturn);
+    const todayRevenue = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        pending_sellers: pendingSellers,
+        approved_sellers: approvedSellers,
+        pending_products: pendingProducts,
+        total_users: totalUsers,
+        pending_orders: pendingOrders,
+        today_revenue: todayRevenue,
+        today_sales_count: todaySales.length,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Failed to fetch stats.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// CATEGORIES MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+// GET /categories — with seller filter option
+router.get('/categories', async (req, res) => {
+  try {
+    const { seller_id } = req.query;
+    const snap = await db.ref('categories').once('value');
+    let cats = Object.entries(snap.val() || {}).map(([id, c]) => ({ id, ...c }));
+
+    if (seller_id) {
+      // Get categories from seller's products
+      const sellerProdSnap = await db.ref('seller_products')
+        .orderByChild('seller_id').equalTo(seller_id).once('value');
+      const sellerCats = new Set();
+      sellerProdSnap.forEach(child => {
+        const p = child.val();
+        if (p.category_slug && !p.deleted_at) sellerCats.add(p.category_slug);
+      });
+      cats = cats.filter(c => sellerCats.has(c.slug));
+    }
+
+    res.json({ success: true, data: cats });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch categories.' });
+  }
+});
+
 module.exports = router;
+
