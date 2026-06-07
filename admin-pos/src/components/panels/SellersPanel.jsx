@@ -110,7 +110,6 @@ const SellerDrawer = ({ seller, onClose, onAction }) => {
           ['📧 Email', seller.email],
           ['📱 Phone', seller.phone],
           ['🪪 NIC / BR', seller.nic_br],
-          ['🏪 Business Type', seller.business_type],
           ['📍 Address', seller.address],
           ['📅 Registered', seller.created_at ? new Date(seller.created_at).toLocaleString() : '—'],
           ['🏦 Bank', seller.bank_name || '—'],
@@ -124,6 +123,33 @@ const SellerDrawer = ({ seller, onClose, onAction }) => {
             <span style={{ color: '#e2e8f0', fontSize: 13, wordBreak: 'break-all' }}>{v || '—'}</span>
           </div>
         ))}
+
+        {/* Business Description */}
+        {seller.description && (
+          <div style={{
+            padding: '10px 14px', background: '#0f172a', borderRadius: 8, marginBottom: 12,
+          }}>
+            <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700, marginBottom: 4, textTransform: 'uppercase' }}>Shop Description</div>
+            <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: '1.4' }}>{seller.description}</div>
+          </div>
+        )}
+
+        {/* Categories to Sell */}
+        {seller.categories && Array.isArray(seller.categories) && seller.categories.length > 0 && (
+          <div style={{
+            padding: '10px 14px', background: '#0f172a', borderRadius: 8, marginBottom: 12,
+          }}>
+            <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700, marginBottom: 6, textTransform: 'uppercase' }}>Selling Categories</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {seller.categories.map((cat, idx) => (
+                <span key={idx} style={{
+                  background: '#6366f122', color: '#818cf8', border: '1px solid #6366f133',
+                  padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                }}>{cat}</span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {seller.ban_reason && (
           <div style={{
