@@ -140,6 +140,13 @@ const Dashboard = () => {
 
       prevCounts.current = newCounts;
       setNotifCounts(newCounts);
+
+      /* ── update PWA app icon badge ── */
+      const total = Object.values(newCounts).reduce((s, v) => s + (v || 0), 0);
+      if ('setAppBadge' in navigator) {
+        if (total > 0) navigator.setAppBadge(total).catch(() => {});
+        else navigator.clearAppBadge().catch(() => {});
+      }
     } catch {/* silent */}
   }, []);
 
@@ -186,7 +193,11 @@ const Dashboard = () => {
     finally { setIsUnlocking(false); }
   };
 
-  const handleLogout = async () => { await signOut(auth); navigate('/login'); };
+  const handleLogout = async () => {
+    if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+    await signOut(auth);
+    navigate('/login');
+  };
 
   const handleTabClick = (id) => {
     setActiveTab(id);
