@@ -27,23 +27,33 @@ const SellerRegister = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const navigate = useNavigate();
 
+  const DEFAULT_CATEGORIES = [
+    { id: 'clothing', name: 'Clothing & Fashion' },
+    { id: 'electronics', name: 'Electronics & Gadgets' },
+    { id: 'home', name: 'Home & Living' },
+    { id: 'grocery', name: 'Grocery & Food' },
+    { id: 'beauty', name: 'Beauty & Health' },
+    { id: 'sports', name: 'Sports & Outdoor' },
+    { id: 'toys', name: 'Toys & Baby' },
+    { id: 'books', name: 'Books & Stationery' },
+    { id: 'automotive', name: 'Automotive' },
+    { id: 'pets', name: 'Pet Supplies' },
+  ];
+
   useEffect(() => {
     // Fetch categories for product selection tags
     const fetchCats = async () => {
       try {
         const res = await api.get('/categories');
-        if (res.success) {
-          setCategories(res.data || []);
+        if (res.success && res.data && res.data.length > 0) {
+          setCategories(res.data);
+        } else {
+          // API succeeded but returned empty — use defaults
+          setCategories(DEFAULT_CATEGORIES);
         }
       } catch (e) {
-        // Fallback categories list
-        setCategories([
-          { id: 'clothing', name: 'Clothing & Fashion' },
-          { id: 'electronics', name: 'Electronics & Gadgets' },
-          { id: 'home', name: 'Home & Living' },
-          { id: 'grocery', name: 'Grocery & Food' },
-          { id: 'beauty', name: 'Beauty & Health' }
-        ]);
+        // API failed — use fallback categories list
+        setCategories(DEFAULT_CATEGORIES);
       }
     };
     fetchCats();
