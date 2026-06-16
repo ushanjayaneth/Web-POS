@@ -381,7 +381,7 @@ export default function SellersPanel() {
                       </td>
                       <td style={styles.td}>{s.business_type || '—'}</td>
                       <td style={styles.td}><StatusBadge status={s.status} /></td>
-                      <td style={styles.td} style={{ ...styles.td, fontSize: 12, color: '#94a3b8' }}>
+                      <td style={{ ...styles.td, fontSize: 12, color: '#94a3b8' }}>
                         {s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}
                       </td>
                       <td style={styles.td}>
