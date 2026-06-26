@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiPlus, FiTrash2, FiEdit2, FiArrowLeft, FiImage, FiPlusCircle, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
+import { normalizeCategories } from '../../utils/categories';
 
 const SellerProducts = () => {
   const [products, setProducts] = useState([]);
@@ -51,10 +52,10 @@ const SellerProducts = () => {
     const fetchCats = async () => {
       try {
         const res = await api.get('/categories');
-        if (res.success) {
-          setCategories(res.data || []);
-        }
-      } catch (err) {}
+        setCategories(normalizeCategories(res.success ? res.data : []));
+      } catch (err) {
+        setCategories(normalizeCategories([]));
+      }
     };
     fetchCats();
   }, []);
@@ -153,7 +154,7 @@ const SellerProducts = () => {
     setEditingId(null);
     setFormData({
       name: '',
-      category_name: categories[0]?.name || 'Clothing',
+      category_name: categories[0]?.name || normalizeCategories([])[0].name,
       price: '',
       sale_price: '',
       stock: '',
@@ -166,7 +167,7 @@ const SellerProducts = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.stock) {
+    if (!formData.name || !formData.category_name || !formData.price || !formData.stock) {
       return toast.error('Please fill in required fields.');
     }
 
@@ -255,10 +256,12 @@ const SellerProducts = () => {
                 Category *
                 <select
                   name="category_name"
+                  required
                   value={formData.category_name}
                   onChange={handleInputChange}
                   style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '8px', marginTop: '6px' }}
                 >
+                  <option value="" disabled>Select category</option>
                   {categories.map((c) => (
                     <option key={c.id || c.name} value={c.name}>{c.name}</option>
                   ))}

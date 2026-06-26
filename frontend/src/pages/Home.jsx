@@ -5,13 +5,7 @@ import { FiArrowRight, FiRefreshCw, FiShield, FiShoppingBag, FiTruck } from 'rea
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
-
-const fallbackDepartments = [
-  { name: 'Electronics', slug: 'electronics' },
-  { name: 'Fashion', slug: 'fashion' },
-  { name: 'Home & Living', slug: 'home-living' },
-  { name: 'Beauty', slug: 'beauty' },
-];
+import { normalizeCategories } from '../utils/categories';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
@@ -33,11 +27,9 @@ const Home = () => {
     const fetchCategories = async () => {
       try {
         const catRes = await api.get(`/categories?_ts=${Date.now()}`);
-        if (catRes.success) {
-          setCategories((catRes.data || []).filter((category) => category.is_active !== 0));
-        }
+        setCategories(normalizeCategories(catRes.success ? catRes.data : []));
       } catch {
-        setCategories([]);
+        setCategories(normalizeCategories([]));
       }
     };
 
@@ -56,7 +48,7 @@ const Home = () => {
 
   const departments = useMemo(() => {
     if (categories.length > 0) return categories.slice(0, 8);
-    return fallbackDepartments;
+    return normalizeCategories([]).slice(0, 8);
   }, [categories]);
 
   return (

@@ -296,9 +296,13 @@ router.post('/products', protectSeller, [
 // ─── SELLER UPDATE OWN PRODUCT ────────────────────────────────────────────────
 router.put('/products/:id', protectSeller, [
   body('name').optional().trim().isLength({ min: 2, max: 120 }),
+  body('category_name').optional().trim().isLength({ min: 1, max: 80 }),
   body('price').optional().isFloat({ min: 0 }),
   body('stock').optional().isInt({ min: 0 }),
 ], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
   try {
     const ref = db.ref(`seller_products/${req.params.id}`);
     const snap = await ref.once('value');
@@ -311,6 +315,10 @@ router.put('/products/:id', protectSeller, [
     const allowed = ['name', 'price', 'sale_price', 'stock', 'description', 'images', 'wholesale_tiers', 'category_name'];
     const updates = { updated_at: Date.now(), approval_status: 'pending', is_active: 0 };
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+    if (updates.category_name !== undefined) {
+      updates.category_name = String(updates.category_name || '').trim().slice(0, 80);
+      updates.category_slug = slugify(req.body.category_slug || updates.category_name);
+    }
 
     await ref.update(updates);
     res.json({ success: true, message: 'Product updated. Pending re-approval.' });

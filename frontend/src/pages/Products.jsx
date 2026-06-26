@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../utils/api';
 import ProductCard from '../components/ProductCard';
 import { getProductPrice } from '../utils/catalog';
+import { normalizeCategories } from '../utils/categories';
 
 const formatTitle = (value) => {
   if (!value) return 'All products';
@@ -47,11 +48,9 @@ const Products = () => {
     const fetchCategories = async () => {
       try {
         const categoryRes = await api.get(`/categories?_ts=${Date.now()}`);
-        if (categoryRes.success) {
-          setCategories((categoryRes.data || []).filter((category) => category.is_active !== 0));
-        }
+        setCategories(normalizeCategories(categoryRes.success ? categoryRes.data : []));
       } catch {
-        setCategories([]);
+        setCategories(normalizeCategories([]));
       }
     };
 
